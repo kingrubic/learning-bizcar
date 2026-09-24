@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
 import { assignUserAccess } from "@/lib/admin-actions";
 import { CreateUserForm } from "@/components/admin/CreateUserForm";
+import { ResetUserPassword } from "@/components/admin/ResetUserPassword";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function UsersAdminPage() {
       <CreateUserForm departments={departments} groups={groups} />
       <div className="table-wrap card" style={{ padding: 0 }}>
         <table>
-          <thead><tr><th>Người dùng</th><th>Vai trò</th><th>Phòng ban và nhóm quyền</th></tr></thead>
+          <thead><tr><th>Người dùng</th><th>Vai trò</th><th>Phòng ban và nhóm quyền</th><th>Mật khẩu</th></tr></thead>
           <tbody>
             {users.map((person) => (
               <tr key={person.id}>
@@ -42,6 +43,7 @@ export default async function UsersAdminPage() {
                     </form>
                   ) : <span className="muted">{person.role === "admin" ? "Toàn quyền" : "Mọi menu trừ người dùng, phòng ban, nhóm quyền"}</span>}
                 </td>
+                <td><ResetUserPassword userId={person.id} /></td>
               </tr>
             ))}
           </tbody>

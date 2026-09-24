@@ -1,3 +1,4 @@
+import { learningState } from "./access";
 import { api, q } from "./convex";
 import type { Role } from "./db";
 
@@ -41,8 +42,17 @@ export const MENUS: MenuItem[] = [
 ];
 
 export async function menusFor(user: SessionUser) {
-  if (user.role === "admin") return MENUS;
-  if (user.role === "mod") return MENUS.filter((item) => !item.adminOnly);
+  const base = user.role === "admin"
+    ? MENUS
+    : user.role === "mod"
+      ? MENUS.filter((item) => !item.adminOnly)
+      : await learnerMenus(user);
+  if (user.role !== "user") return base;
+  const course = (await learningState(user.id)).course;
+  return base.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${course.slug}` } : item);
+}
+
+async function learnerMenus(user: SessionUser) {
   if (!user.permissionGroupId) return [];
   const rows = await q((convex, secret) => convex.query(api.reads.menuKeys, { secret, groupId: user.permissionGroupId! }));
   const allowed = new Set(rows.map((row) => row.menu_key));

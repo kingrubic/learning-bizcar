@@ -154,6 +154,89 @@ export const resetPassword = mutation({
   },
 });
 
+export const createCohort = mutation({
+  args: {
+    ...secret,
+    actorId: v.number(),
+    name: v.string(),
+    courseId: v.number(),
+    mode: v.union(v.literal("all_open"), v.literal("sequential"), v.literal("scheduled")),
+  },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const name = args.name.trim();
+    if (!name) return { error: "Thiếu tên lớp." as const };
+    const course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.courseId)).unique();
+    if (!course) return { error: "Khoá không tồn tại." as const };
+    const org = await ctx.db.query("organizations").withIndex("by_legacy").first();
+    if (!org) return { error: "Chưa có tổ chức." as const };
+    const id = await nextId(ctx, "cohorts");
+    await ctx.db.insert("cohorts", {
+      legacyId: id,
+      organizationId: org.legacyId,
+      courseId: course.legacyId,
+      name,
+      unlockMode: args.mode,
+      reviewEnabled: 1,
+      createdAt: now(),
+    });
+    await log(ctx, args.actorId, "cohort_create", "cohort", String(id), name);
+    return { id };
+  },
+});
+
+export const cloneCourse = mutation({
+  args: {
+    ...secret,
+    actorId: v.number(),
+    sourceCourseId: v.number(),
+    code: v.string(),
+    title: v.string(),
+    tagline: v.string(),
+  },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const code = args.code.trim();
+    const title = args.title.trim();
+    if (!code || !title) return { error: "Thiếu mã hoặc tên khoá." as const };
+    const slug = code.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    if (!slug) return { error: "Mã khoá không hợp lệ." as const };
+    const taken = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (taken) return { error: "Mã khoá đã tồn tại." as const };
+    const source = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.sourceCourseId)).unique();
+    if (!source) return { error: "Khoá nguồn không tồn tại." as const };
+    const courseId = await nextId(ctx, "courses");
+    await ctx.db.insert("courses", {
+      legacyId: courseId,
+      slug,
+      code,
+      title,
+      tagline: args.tagline.trim() || source.tagline,
+    });
+    const lessons = (await ctx.db.query("lessons").collect())
+      .filter((row) => row.courseId === source.legacyId)
+      .sort((a, b) => a.number - b.number);
+    for (const lesson of lessons) {
+      const lessonId = await nextId(ctx, "lessons");
+      await ctx.db.insert("lessons", {
+        legacyId: lessonId,
+        courseId,
+        number: lesson.number,
+        title: lesson.title,
+        framework: lesson.framework,
+        summary: lesson.summary,
+        groupName: lesson.groupName,
+        hasReport: lesson.hasReport,
+        storageKey: lesson.storageKey,
+        contentVersion: lesson.contentVersion,
+        schemaVersion: lesson.schemaVersion,
+      });
+    }
+    await log(ctx, args.actorId, "course_clone", "course", String(courseId), `${source.code} → ${code}`);
+    return { id: courseId, lessons: lessons.length };
+  },
+});
+
 export const setUnlockMode = mutation({
   args: { ...secret, actorId: v.number(), cohortId: v.number(), mode: v.union(v.literal("all_open"), v.literal("sequential"), v.literal("scheduled")) },
   handler: async (ctx, args) => {

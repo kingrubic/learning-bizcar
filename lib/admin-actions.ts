@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getSession } from "./auth";
 import { api, q } from "./convex";
 import { hashPassword, temporaryPassword } from "./password";
@@ -47,7 +48,37 @@ export async function resetPassword(userId: number) {
   const temp = temporaryPassword();
   await q((convex, secret) => convex.mutation(api.writes.resetPassword, { secret, actorId: user.id, userId, passwordHash: hashPassword(temp) }));
   revalidatePath("/admin/learning/learners");
+  revalidatePath("/admin/organization/users");
   return temp;
+}
+
+export async function createCohort(formData: FormData) {
+  const user = await actor(true);
+  const name = String(formData.get("name") || "").trim();
+  const courseId = Number(formData.get("courseId"));
+  const mode = String(formData.get("mode") || "sequential");
+  if (!name || !courseId) redirect("/admin/learning/cohorts?error=Thiếu tên lớp hoặc khoá.");
+  if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") redirect("/admin/learning/cohorts?error=Cách mở bài không hợp lệ.");
+  const created = await q((convex, secret) => convex.mutation(api.writes.createCohort, { secret, actorId: user.id, name, courseId, mode }));
+  if ("error" in created && created.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(created.error)}`);
+  revalidatePath("/admin/learning/cohorts");
+  revalidatePath("/admin/learning");
+  revalidatePath("/admin/learning/learners");
+  redirect("/admin/learning/cohorts");
+}
+
+export async function cloneCourse(formData: FormData) {
+  const user = await actor(true);
+  const code = String(formData.get("code") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const tagline = String(formData.get("tagline") || "").trim();
+  const sourceCourseId = Number(formData.get("sourceCourseId"));
+  if (!code || !title || !sourceCourseId) redirect("/admin/learning/courses?error=Thiếu mã, tên hoặc khoá nguồn.");
+  const created = await q((convex, secret) => convex.mutation(api.writes.cloneCourse, { secret, actorId: user.id, sourceCourseId, code, title, tagline }));
+  if ("error" in created && created.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(created.error)}`);
+  revalidatePath("/admin/learning/courses");
+  revalidatePath("/admin/learning/cohorts");
+  redirect("/admin/learning/courses");
 }
 
 export async function setUnlockMode(cohortId: number, mode: string) {

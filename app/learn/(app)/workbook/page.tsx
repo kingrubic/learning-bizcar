@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
-import { answersFor, lessonRows } from "@/lib/access";
+import { answersFor, learningState } from "@/lib/access";
 import { WORKBOOK, readPath } from "@/lib/course";
 import { canSee } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -16,11 +16,12 @@ export default async function WorkbookPage() {
   if (!(await canSee(user, "workbook"))) redirect("/learn/profile");
   const locale = await getLocale();
   const t = messages(locale);
-  const lessons = await lessonRows();
+  const course = (await learningState(user.id)).course;
+  const lessons = (await learningState(user.id)).lessons;
   const answers = new Map((await answersFor(user.id)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
   return (
     <main className="page">
-      <div className="eyebrow">BMDO K03</div>
+      <div className="eyebrow">{course.code}</div>
       <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{t.workbook}</h1>
       <p className="lede">{t.workbookLede}</p>
       {lessons.map((lesson) => {
@@ -35,7 +36,7 @@ export default async function WorkbookPage() {
                 <div className="eyebrow">{t.lesson} {code} · {lesson.framework}</div>
                 <h2 className="serif" style={{ fontSize: 28 }}>{locale === "en" ? lessonEn[lesson.number]?.title ?? lesson.title : lesson.title}</h2>
               </div>
-              <Link className="btn" href={`/learn/course/bmdo-k03/lesson/${code}`}>{t.reopen}</Link>
+              <Link className="btn" href={`/learn/course/${course.slug}/lesson/${code}`}>{t.reopen}</Link>
             </div>
             {filled.length === 0 && <p className="muted">{t.emptyOutputs}</p>}
             {filled.map((field) => (

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answersFor, courseProgress, enrollmentFor, lessonRows } from "@/lib/access";
-import { COURSE } from "@/lib/course";
+import { answersFor, courseProgress, enrollmentFor, learningState } from "@/lib/access";
 import { canSee } from "@/lib/permissions";
 import { CourseMap } from "@/components/learning/CourseMap";
 import { getLocale } from "@/lib/locale";
@@ -15,7 +14,8 @@ export default async function DashboardPage() {
   if (!(await canSee(user, "dashboard"))) redirect("/learn/profile");
   const enrollment = await enrollmentFor(user.id);
   const progress = await courseProgress(user.id);
-  const lessons = await lessonRows();
+  const course = (await learningState(user.id)).course;
+  const lessons = (await learningState(user.id)).lessons;
   const answers = await answersFor(user.id);
   const byId = new Map(answers.map((row) => [row.lesson_id, row]));
   const recent = [...answers].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="page">
-      <div className="eyebrow">{COURSE.code} · {t.executive}</div>
+      <div className="eyebrow">{course.code} · {t.executive}</div>
       <h1 className="serif display">{greet}, {user.displayName.split(" ").slice(-1)}</h1>
       <p className="lede">{await cmsBlock("dashboard.lede", locale, t.lede)}</p>
       {notices.map((item) => (
@@ -44,7 +44,7 @@ export default async function DashboardPage() {
           <h2 className="serif" style={{ fontSize: 32 }}>{continueLesson ? `${t.lesson} ${String(continueLesson.number).padStart(2, "0")} · ${continueLesson.framework}` : "BizCar"}</h2>
           <p className="muted">{(locale === "en" ? continueCopy?.summary_en : continueCopy?.summary_vi) ?? continueLesson?.summary}</p>
           <p>{progress.completed}/{progress.total} {t.doneOf} · {progress.percent}%</p>
-          {continueLesson && <Link className="btn gold" href={`/learn/course/bmdo-k03/lesson/${String(continueLesson.number).padStart(2, "0")}`}>{t.continueDesign}</Link>}
+          {continueLesson && <Link className="btn gold" href={`/learn/course/${course.slug}/lesson/${String(continueLesson.number).padStart(2, "0")}`}>{t.continueDesign}</Link>}
         </article>
         <article className="card">
           <div className="eyebrow">{t.recent}</div>

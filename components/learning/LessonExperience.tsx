@@ -24,6 +24,8 @@ export function LessonExperience({
   reviewEnabled,
   status,
   locale,
+  courseSlug,
+  courseCode,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -37,6 +39,8 @@ export function LessonExperience({
   reviewEnabled: boolean;
   status: string;
   locale: Locale;
+  courseSlug: string;
+  courseCode: string;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -98,7 +102,7 @@ export function LessonExperience({
         <nav className="lesson-nav" aria-label={t.lessonList}>
           {lessons.map((item) => (
             item.unlocked ? (
-              <Link key={item.number} href={`/learn/course/bmdo-k03/lesson/${item.code}`} className={item.number === lesson.number ? "active" : ""}>
+              <Link key={item.number} href={`/learn/course/${courseSlug}/lesson/${item.code}`} className={item.number === lesson.number ? "active" : ""}>
                 <span>{item.code}</span> {item.framework}
               </Link>
             ) : (
@@ -111,7 +115,7 @@ export function LessonExperience({
         <header className="shell-top">
           <div className="crumb">
             <button type="button" className="btn menu-btn" onClick={() => setMenu(true)} aria-label={t.openNav}>☰</button>
-            <Link href="/learn/course/bmdo-k03">BMDO K03</Link>
+            <Link href={`/learn/course/${courseSlug}`}>{courseCode}</Link>
             <span>/</span>
             <b>{t.lesson} {lesson.code} · {t.phases[phase]}</b>
           </div>

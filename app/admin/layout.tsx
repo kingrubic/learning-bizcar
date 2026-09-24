@@ -10,6 +10,7 @@ import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession();
   if (!user) redirect("/learn/login");
+  if (user.mustChangePassword) redirect("/learn/password");
   const locale = await getLocale();
   const t = messages(locale);
   const links = (await menusFor(user)).filter((item) => item.area === "admin");

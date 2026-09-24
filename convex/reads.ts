@@ -55,7 +55,13 @@ export const learnState = query({
   args: { ...secret, userId: v.number() },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const course = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", "bmdo-k03")).unique();
+    const enrolled = args.userId
+      ? (await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect())
+        .find((row) => row.memberRole === "learner")
+      : null;
+    const course = enrolled
+      ? await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", enrolled.courseId)).unique()
+      : await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", "bmdo-k03")).unique();
     if (!course) return null;
     const lessons = (await ctx.db.query("lessons").collect())
       .filter((row) => row.courseId === course.legacyId)
@@ -71,8 +77,7 @@ export const learnState = query({
         content_version: row.contentVersion,
         schema_version: row.schemaVersion,
       }));
-    const enrollment = (await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect())
-      .find((row) => row.courseId === course.legacyId);
+    const enrollment = enrolled && enrolled.courseId === course.legacyId ? enrolled : null;
     const cohort = enrollment
       ? await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", enrollment.cohortId)).unique()
       : null;
@@ -407,10 +412,18 @@ export const cohortsView = query({
       course_id: row.courseId,
       organization_id: row.organizationId,
     }));
+    const courses = (await ctx.db.query("courses").collect()).map((row) => ({
+      id: row.legacyId,
+      code: row.code,
+      title: row.title,
+      slug: row.slug,
+      tagline: row.tagline,
+    }));
     const lessons = (await ctx.db.query("lessons").collect())
-      .sort((a, b) => a.number - b.number)
+      .sort((a, b) => a.courseId - b.courseId || a.number - b.number)
       .map((row) => ({
         id: row.legacyId,
+        course_id: row.courseId,
         number: row.number,
         title: row.title,
         framework: row.framework,
@@ -419,7 +432,7 @@ export const cohortsView = query({
         schema_version: row.schemaVersion,
         has_report: row.hasReport,
       }));
-    return { cohorts, lessons };
+    return { cohorts, lessons, courses };
   },
 });
 

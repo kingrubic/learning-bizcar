@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { answersFor, lessonRows } from "@/lib/access";
+import { answersFor, learningState } from "@/lib/access";
 import { PORTFOLIO, readPath } from "@/lib/course";
 import { PrintButton } from "@/components/learning/PrintButton";
 import { canSee } from "@/lib/permissions";
@@ -14,13 +14,14 @@ export default async function PortfolioPage() {
   if (!user) return null;
   if (!(await canSee(user, "portfolio"))) redirect("/learn/profile");
   const t = messages(await getLocale());
-  const lessons = await lessonRows();
+  const course = (await learningState(user.id)).course;
+  const lessons = (await learningState(user.id)).lessons;
   const answers = new Map((await answersFor(user.id)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
   return (
     <main className="page portfolio">
       <div className="no-print" style={{ textAlign: "right" }}><PrintButton label={t.print} /></div>
       <header>
-        <div className="eyebrow">VABIX · BMDO K03</div>
+        <div className="eyebrow">VABIX · {course.code}</div>
         <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 58px)", marginBottom: 0 }}>My BizCar</h1>
         <p className="lede">{t.portfolioLede} {user.displayName}.</p>
       </header>

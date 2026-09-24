@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { answersFor, isLessonUnlocked, lessonRows } from "@/lib/access";
+import { answersFor, isLessonUnlocked, learningState } from "@/lib/access";
 import { GROUPS, LESSONS } from "@/lib/course";
 import { messages, type Locale } from "@/lib/i18n";
 import { cmsLessons } from "@/lib/cms";
 
 export async function CourseMap({ userId, locale }: { userId: number; locale: Locale }) {
   const t = messages(locale);
-  const lessons = await lessonRows();
+  const course = (await learningState(userId)).course;
+  const lessons = (await learningState(userId)).lessons;
   const copies = new Map((await cmsLessons()).map((item) => [item.number, item]));
   const answers = new Map((await answersFor(userId)).map((row) => [row.lesson_id, row]));
   const unlockedByNumber = new Map(await Promise.all(lessons.map(async (lesson) => [lesson.number, await isLessonUnlocked(userId, lesson.number)] as const)));
@@ -33,7 +34,7 @@ export async function CourseMap({ userId, locale }: { userId: number; locale: Lo
                   <h3 className="serif" style={{ fontSize: 26, margin: 0 }}>{locale === "en" ? copy?.title_en ?? lesson.title : copy?.title_vi ?? lesson.title}</h3>
                   <p className="muted" style={{ flex: 1 }}>{locale === "en" ? copy?.summary_en ?? meta?.summary : copy?.summary_vi ?? meta?.summary}</p>
                   <div className="p-track" style={{ background: "var(--soft)" }}><div style={{ width: `${answer?.progress_percent ?? 0}%`, background: "var(--gold)" }} /></div>
-                  {unlocked ? <Link className="btn dark" href={`/learn/course/bmdo-k03/lesson/${code}`}>{status === "not_started" ? t.openLesson : t.resume}</Link> : <span className="muted">{t.locked}</span>}
+                  {unlocked ? <Link className="btn dark" href={`/learn/course/${course.slug}/lesson/${code}`}>{status === "not_started" ? t.openLesson : t.resume}</Link> : <span className="muted">{t.locked}</span>}
                 </article>
               );
             })}

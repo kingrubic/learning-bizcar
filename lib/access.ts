@@ -29,6 +29,10 @@ export async function courseRow() {
   return (await loadState(0)).course;
 }
 
+export async function learningState(userId: number) {
+  return loadState(userId);
+}
+
 export async function lessonRows() {
   return (await loadState(0)).lessons;
 }

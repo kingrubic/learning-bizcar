@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answerFor, enrollmentFor, isLessonUnlocked, lessonRows } from "@/lib/access";
+import { answerFor, enrollmentFor, isLessonUnlocked, learningState } from "@/lib/access";
 import { lessonByNumber } from "@/lib/course";
 import { loadLessonSource } from "@/lib/lesson-source";
 import { LessonExperience } from "@/components/learning/LessonExperience";
@@ -10,7 +10,6 @@ import { lessonPublished } from "@/lib/cms";
 
 export default async function LessonPage({ params }: { params: Promise<{ slug: string; num: string }> }) {
   const { slug, num } = await params;
-  if (slug !== "bmdo-k03") notFound();
   const number = Number(num);
   const meta = lessonByNumber(number);
   if (!meta) notFound();
@@ -20,8 +19,10 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   if (!(await canSee(user, "map"))) redirect("/learn/profile");
   const enrollment = await enrollmentFor(user.id);
   if (!enrollment) redirect("/learn/dashboard");
-  if (!(await lessonPublished(number)) || !(await isLessonUnlocked(user.id, number))) redirect("/learn/course/bmdo-k03");
-  const rows = await lessonRows();
+  const state = await learningState(user.id);
+  if (slug !== state.course.slug) notFound();
+  if (!(await lessonPublished(number)) || !(await isLessonUnlocked(user.id, number))) redirect(`/learn/course/${state.course.slug}`);
+  const rows = state.lessons;
   const row = rows.find((item) => item.number === number);
   if (!row) notFound();
   const saved = await answerFor(user.id, row.id);
@@ -50,6 +51,8 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       reviewEnabled={Boolean(enrollment?.review_enabled)}
       status={saved?.status ?? "not_started"}
       locale={await getLocale()}
+      courseSlug={state.course.slug}
+      courseCode={state.course.code}
     />
   );
 }
