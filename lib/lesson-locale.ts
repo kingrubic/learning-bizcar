@@ -18,4 +18,5 @@ export const lessonEn: Record<number, { title: string; summary: string }> = {
   17: { title: "F-Air", summary: "Governance, Risk, Earnings Quality, Liquidity, Solvency. Financial trust with evidence." },
   18: { title: "F-Casing", summary: "Clear Rules, Smooth Flow, Verifiable Evidence. A financial situation that can be seen and checked." },
   19: { title: "F-Tread", summary: "Cash Conversion, Cost and Obligation, Capital Allocation, Capital Productivity, Financial Resilience." },
+  20: { title: "GTS / KTO", summary: "Gearbox and Transmission System. KAROT, Transmission Flow, and Operating Control turn a target into coordinated motion." },
 };

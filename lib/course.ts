@@ -34,7 +34,7 @@ export type LessonMeta = {
   title: string;
   framework: string;
   summary: string;
-  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL";
+  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION";
   hasReport: boolean;
   storageKey: string;
   schemaVersion: string;
@@ -61,9 +61,10 @@ export const LESSONS: LessonMeta[] = [
   { number: 17, code: "17", title: "F-Air", framework: "GRELS", summary: "Governance, Risk, Earnings Quality, Liquidity, Solvency. Niềm tin tài chính có căn cứ.", group: "FINANCE WHEEL", hasReport: true, storageKey: "bmdo_k03_buoi17_fair_grels", schemaVersion: "1", contentVersion: "2026.09" },
   { number: 18, code: "18", title: "F-Casing", framework: "RFE", summary: "Clear Rules, Smooth Flow, Verifiable Evidence. Tình huống tài chính được nhìn thấy và kiểm chứng.", group: "FINANCE WHEEL", hasReport: true, storageKey: "bmdo_k03_buoi18_rfe_v1", schemaVersion: "1", contentVersion: "2026.09" },
   { number: 19, code: "19", title: "F-Tread", framework: "4C1R", summary: "Cash Conversion, Cost & Obligation, Capital Allocation, Capital Productivity, Financial Resilience. Sức bám và lực đẩy tài chính.", group: "FINANCE WHEEL", hasReport: false, storageKey: "bmdo-k03-buoi19-ftread-v1", schemaVersion: "1", contentVersion: "2026.09" },
+  { number: 20, code: "20", title: "GTS / KTO", framework: "KTO", summary: "Gearbox & Transmission System. KAROT, Transmission Flow và Operating Control chuyển mục tiêu thành chuyển động có phối hợp.", group: "TRANSMISSION", hasReport: true, storageKey: "bmdo_k03_buoi20_gts_kto_v1", schemaVersion: "1", contentVersion: "2026.09" },
 ];
 
-export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL"] as const;
+export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION"] as const;
 
 export function lessonByNumber(n: number) {
   return LESSONS.find((l) => l.number === n);
@@ -287,6 +288,25 @@ export const WORKBOOK: Record<number, WorkbookField[]> = {
     { path: "resolve.action", label: "Cam kết 7 ngày" },
     { path: "resolve.evidence", label: "Bằng chứng" },
   ],
+  20: [
+    { path: "profile.company", label: "Doanh nghiệp" },
+    { path: "profile.name", label: "Người thiết kế" },
+    { path: "karot.priority", label: "Mục tiêu ưu tiên" },
+    { path: "karot.target", label: "Target" },
+    { path: "karot.owner", label: "Chủ sở hữu Target" },
+    { path: "flow.outcome", label: "Outcome của dòng vận hành" },
+    { path: "flow.lock", label: "Điểm khóa dòng vận hành" },
+    { path: "lens.key", label: "Điểm yếu then chốt" },
+    { path: "improve.0", label: "Cải tiến 1" },
+    { path: "improve.1", label: "Cải tiến 2" },
+    { path: "improve.2", label: "Cải tiến 3" },
+    { path: "extract.0", label: "Bài học 1" },
+    { path: "extract.1", label: "Bài học 2" },
+    { path: "extract.2", label: "Bài học 3" },
+    { path: "resolve.action", label: "Hành động 7 ngày" },
+    { path: "resolve.owner", label: "Chủ sở hữu" },
+    { path: "resolve.evidence", label: "Bằng chứng" },
+  ],
 };
 
 export const PORTFOLIO: Record<number, { heading: string; paths: WorkbookField[] }> = {
@@ -309,6 +329,7 @@ export const PORTFOLIO: Record<number, { heading: string; paths: WorkbookField[]
   17: { heading: "F-Air", paths: WORKBOOK[17] },
   18: { heading: "F-Casing", paths: WORKBOOK[18] },
   19: { heading: "F-Tread", paths: WORKBOOK[19] },
+  20: { heading: "GTS / KTO", paths: WORKBOOK[20] },
 };
 
 export function readPath(source: unknown, path: string): string {

@@ -13,11 +13,14 @@ export async function CourseMap({ userId, locale }: { userId: number; locale: Lo
   const unlockedByNumber = new Map(await Promise.all(lessons.map(async (lesson) => [lesson.number, await isLessonUnlocked(userId, lesson.number)] as const)));
   return (
     <div>
-      {GROUPS.map((group) => (
+      {GROUPS.map((group) => {
+        const rows = lessons.filter((lesson) => lesson.group_name === group && copies.get(lesson.number)?.published !== 0);
+        if (rows.length === 0) return null;
+        return (
         <section className="group" key={group}>
           <h2>{t.group[group]}</h2>
           <div className="map-grid">
-            {lessons.filter((lesson) => lesson.group_name === group && copies.get(lesson.number)?.published !== 0).map((lesson) => {
+            {rows.map((lesson) => {
               const answer = answers.get(lesson.id);
               const status = answer?.status ?? "not_started";
               const unlocked = unlockedByNumber.get(lesson.number) ?? false;
@@ -40,7 +43,8 @@ export async function CourseMap({ userId, locale }: { userId: number; locale: Lo
             })}
           </div>
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }

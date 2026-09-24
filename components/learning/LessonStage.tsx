@@ -102,7 +102,7 @@ export function LessonStage(props: Props) {
       },
     };
 
-    const fakeLocation = { reload: () => setGeneration((n) => n + 1) };
+    const fakeLocation = { hash: "", reload: () => setGeneration((n) => n + 1) };
     const realDocument = document;
     const scopedDocument = new Proxy(realDocument, {
       get(target, prop, receiver) {
