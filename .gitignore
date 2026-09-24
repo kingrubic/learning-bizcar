@@ -1,0 +1,11 @@
+node_modules
+.env.local
+.env*.local
+.next
+data
+*.sqlite
+*.sqlite-*
+.DS_Store
+source/bizcar-original/**/__MACOSX
+tsconfig.tsbuildinfo
+*.zip
