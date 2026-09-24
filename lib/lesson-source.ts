@@ -30,7 +30,7 @@ export function loadLessonSource(number: number): LessonSource {
 ;try{window.sample=typeof loadSample==='function'?loadSample:(document.querySelector('#sampleBtn')?function(){document.querySelector('#sampleBtn').click()}:sample)}catch(e){}
 ;try{window.toggleMenu=toggleMenu}catch(e){}
 ;try{window.exportJSON=exportJSON}catch(e){}
-;try{window.clearData=clearData}catch(e){}
+;try{window.clearData=typeof clearData==='function'?clearData:(typeof resetData==='function'?resetData:undefined)}catch(e){}
 ;try{window.__bizcarShow=window.show}catch(e){}
 ;try{window.__bizcarState=function(){return state}}catch(e){}
 `;
