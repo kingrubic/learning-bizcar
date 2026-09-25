@@ -1,4 +1,4 @@
-import { channelAccess, type ChannelKind } from "../convex/discussionAccess.ts";
+import { channelAccess, draftFromMessages, type ChannelKind } from "../convex/discussionAccess.ts";
 
 const base = {
   staff: false,
@@ -23,4 +23,14 @@ expect({ ...base, archived: true }, false, false, "learner archived class");
 expect({ ...base, kind: "group", member: true, archived: true }, false, false, "learner archived group");
 expect({ ...base, staff: true, archived: true }, true, false, "staff archived read only");
 expect({ ...base, staff: true, enrolledCohortId: null, kind: "class", channelCohortId: 4 }, true, true, "staff class");
+const draft = draftFromMessages([
+  { authorName: "An", body: "hello\nworld", fileCount: 0 },
+  { authorName: "Bình", body: "", fileCount: 2 },
+  { authorName: "C", body: "   ", fileCount: 0 },
+], (count) => `${count} files`);
+if (draft !== "- An: hello\n- Bình: 2 files") throw new Error(`draft ${draft}`);
+const cut = draftFromMessages([{ authorName: "D", body: "x".repeat(200), fileCount: 0 }], () => "");
+if (!cut.startsWith("- D: ") || !cut.endsWith("…")) throw new Error("cut");
+const many = draftFromMessages(Array.from({ length: 40 }, (_, i) => ({ authorName: String(i), body: "m", fileCount: 0 })), () => "");
+if (many.split("\n").length !== 30 || !many.startsWith("- 10:")) throw new Error("window");
 console.log("discussion-access ok");

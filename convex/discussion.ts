@@ -55,6 +55,15 @@ async function learnerIds(ctx: Ctx, cohortId: number) {
   return new Set(rows.filter((row) => row.memberRole === "learner").map((row) => row.userId));
 }
 
+export async function openChannel(ctx: Ctx, userId: number, channelId: number) {
+  const access = await accessFor(ctx, userId);
+  const channel = await channelByLegacy(ctx, channelId);
+  if (!access || !channel) return { error: "missing" as const };
+  const decision = await decide(ctx, access, channel);
+  if (!decision.read) return { error: "forbidden" as const };
+  return { error: null, staff: access.staff, userId: access.userId, channel, decision };
+}
+
 async function decide(ctx: Ctx, access: Access, channel: { legacyId: number; cohortId: number; kind: "class" | "group"; archived: number }) {
   const member = !access.staff && channel.kind === "group" ? await isMember(ctx, channel.legacyId, access.userId) : false;
   return channelAccess({
@@ -483,6 +492,8 @@ export const deleteGroup = mutation({
     }
     const members = await ctx.db.query("discussionMembers").withIndex("by_channel", (q) => q.eq("channelId", channel.legacyId)).collect();
     for (const row of members) await ctx.db.delete(row._id);
+    const summaries = await ctx.db.query("discussionSummaries").withIndex("by_channel", (q) => q.eq("channelId", channel.legacyId)).collect();
+    for (const row of summaries) await ctx.db.delete(row._id);
     await ctx.db.delete(channel._id);
     await log(ctx, access.userId, "discussion_group_delete", String(channel.legacyId), channel.name);
     return { ok: true as const };

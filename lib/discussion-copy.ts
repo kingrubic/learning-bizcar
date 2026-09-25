@@ -14,6 +14,7 @@ export function discussionNotice(t: Copy, code?: string) {
     members: t.discussionErrorMembers,
     deleted: t.adminDiscussionDeleted,
     confirm: t.adminDiscussionDeleteNeed,
+    summary: t.summaryErrorLong,
   };
   return map[code] ?? null;
 }
