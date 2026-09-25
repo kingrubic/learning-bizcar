@@ -34,7 +34,7 @@ export type LessonMeta = {
   title: string;
   framework: string;
   summary: string;
-  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION";
+  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION" | "CHASSIS";
   hasReport: boolean;
   storageKey: string;
   schemaVersion: string;
@@ -62,9 +62,10 @@ export const LESSONS: LessonMeta[] = [
   { number: 18, code: "18", title: "F-Casing", framework: "RFE", summary: "Clear Rules, Smooth Flow, Verifiable Evidence. Tình huống tài chính được nhìn thấy và kiểm chứng.", group: "FINANCE WHEEL", hasReport: true, storageKey: "bmdo_k03_buoi18_rfe_v1", schemaVersion: "1", contentVersion: "2026.09" },
   { number: 19, code: "19", title: "F-Tread", framework: "4C1R", summary: "Cash Conversion, Cost & Obligation, Capital Allocation, Capital Productivity, Financial Resilience. Sức bám và lực đẩy tài chính.", group: "FINANCE WHEEL", hasReport: false, storageKey: "bmdo-k03-buoi19-ftread-v1", schemaVersion: "1", contentVersion: "2026.09" },
   { number: 20, code: "20", title: "GTS / KTO", framework: "KTO", summary: "Gearbox & Transmission System. KAROT, Transmission Flow và Operating Control chuyển mục tiêu thành chuyển động có phối hợp.", group: "TRANSMISSION", hasReport: true, storageKey: "bmdo_k03_buoi20_gts_kto_v1", schemaVersion: "1", contentVersion: "2026.09" },
+  { number: 21, code: "21", title: "Chassis / SGD", framework: "SGD", summary: "Chassis System. Structure, Governance và Decision Rights thiết kế khung gầm để doanh nghiệp gánh tải mà không mất ổn định.", group: "CHASSIS", hasReport: false, storageKey: "bmdo_k03_buoi21_chassis_sgd_v1", schemaVersion: "1", contentVersion: "2026.09" },
 ];
 
-export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION"] as const;
+export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION", "CHASSIS"] as const;
 
 export function lessonByNumber(n: number) {
   return LESSONS.find((l) => l.number === n);
@@ -307,6 +308,28 @@ export const WORKBOOK: Record<number, WorkbookField[]> = {
     { path: "resolve.owner", label: "Chủ sở hữu" },
     { path: "resolve.evidence", label: "Bằng chứng" },
   ],
+  21: [
+    { path: "profile.company", label: "Doanh nghiệp" },
+    { path: "profile.name", label: "Người thiết kế" },
+    { path: "activate.domain", label: "Miền quyết định" },
+    { path: "activate.decision", label: "Quyết định đang chậm" },
+    { path: "structure.result", label: "Kết quả Structure" },
+    { path: "structure.change", label: "Thay đổi Structure" },
+    { path: "governance.protect", label: "Governance bảo vệ" },
+    { path: "governance.change", label: "Thay đổi Governance" },
+    { path: "decision.redesign", label: "Thiết kế lại quyền quyết định" },
+    { path: "decision.newOwner", label: "Người quyết định mới" },
+    { path: "lens.key", label: "Điểm yếu then chốt" },
+    { path: "improve.0", label: "Cải tiến 1" },
+    { path: "improve.1", label: "Cải tiến 2" },
+    { path: "improve.2", label: "Cải tiến 3" },
+    { path: "extract.0", label: "Bài học 1" },
+    { path: "extract.1", label: "Bài học 2" },
+    { path: "extract.2", label: "Bài học 3" },
+    { path: "resolve.action", label: "Hành động 7 ngày" },
+    { path: "resolve.owner", label: "Chủ sở hữu" },
+    { path: "resolve.evidence", label: "Bằng chứng" },
+  ],
 };
 
 export const PORTFOLIO: Record<number, { heading: string; paths: WorkbookField[] }> = {
@@ -330,6 +353,7 @@ export const PORTFOLIO: Record<number, { heading: string; paths: WorkbookField[]
   18: { heading: "F-Casing", paths: WORKBOOK[18] },
   19: { heading: "F-Tread", paths: WORKBOOK[19] },
   20: { heading: "GTS / KTO", paths: WORKBOOK[20] },
+  21: { heading: "Chassis / SGD", paths: WORKBOOK[21] },
 };
 
 export function readPath(source: unknown, path: string): string {
