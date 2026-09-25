@@ -24,6 +24,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
     <main>
       <h1 className="serif">Lớp học</h1>
       <p className="muted">Lớp mới dùng chung bài của khoá đã chọn. Bài làm của học viên lớp cũ không được chép sang.</p>
+      <p className="row-actions"><Link className="btn dark" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link></p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       {enrollNote && <p className="notice"><strong>{enrollNote}</strong></p>}
       {user?.role === "admin" && enrollment?.member_role === "learner" && (

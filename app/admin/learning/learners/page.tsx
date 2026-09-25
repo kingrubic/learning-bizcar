@@ -1,17 +1,25 @@
+import Link from "next/link";
 import { api, q } from "@/lib/convex";
 import { CreateLearnerForm } from "@/components/admin/CreateLearnerForm";
 import { LearnerControls } from "@/components/admin/LearnerControls";
+import { getLocale } from "@/lib/locale";
+import { messages } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 export default async function LearnersPage() {
+  const t = messages(await getLocale());
   const data = await q((convex, secret) => convex.query(api.reads.learnersView, { secret }));
   const cohorts = data.cohorts;
   const learners = data.learners;
   return (
-    <main className="grid-2">
-      <CreateLearnerForm cohorts={cohorts} />
-      <div className="card" style={{ padding: 0 }}>
+    <main>
+      <p className="row-actions" style={{ marginBottom: 16 }}>
+        <Link className="btn gold" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link>
+      </p>
+      <div className="grid-2">
+        <CreateLearnerForm cohorts={cohorts} />
+        <div className="card" style={{ padding: 0 }}>
         <table>
           <thead><tr><th>Học viên</th><th>Cohort</th><th></th></tr></thead>
           <tbody>
@@ -24,6 +32,7 @@ export default async function LearnersPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </main>
   );

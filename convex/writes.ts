@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { ensureClassChannel } from "./discussion";
 import { gate, nextId, now } from "./helpers";
 
 const secret = { secret: v.string() };
@@ -213,6 +214,7 @@ export const createCohort = mutation({
       reviewEnabled: 1,
       createdAt: now(),
     });
+    await ensureClassChannel(ctx, id, args.actorId);
     await log(ctx, args.actorId, "cohort_create", "cohort", String(id), name);
     return { id };
   },

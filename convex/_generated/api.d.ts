@@ -9,6 +9,8 @@
  */
 
 import type * as catalog from "../catalog.js";
+import type * as discussion from "../discussion.js";
+import type * as discussionAccess from "../discussionAccess.js";
 import type * as helpers from "../helpers.js";
 import type * as reads from "../reads.js";
 import type * as seed from "../seed.js";
@@ -22,6 +24,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   catalog: typeof catalog;
+  discussion: typeof discussion;
+  discussionAccess: typeof discussionAccess;
   helpers: typeof helpers;
   reads: typeof reads;
   seed: typeof seed;
