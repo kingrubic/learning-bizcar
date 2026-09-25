@@ -37,7 +37,14 @@ export default async function DashboardPage() {
       {notices.map((item) => (
         <p className="notice" key={item.id}><strong>{item.title}</strong><span>{item.body}</span></p>
       ))}
-      {!enrollment && <p className="notice"><strong>{t.notEnrolled}</strong><span>{t.notEnrolledHint}</span></p>}
+      {!enrollment && user.role === "admin" && (
+        <p className="notice">
+          <strong>{t.notEnrolled}</strong>
+          <span>{t.notEnrolledAdmin}</span>
+          <Link className="btn gold" href="/admin/learning">{t.adminDesk}</Link>
+        </p>
+      )}
+      {!enrollment && user.role !== "admin" && <p className="notice"><strong>{t.notEnrolled}</strong><span>{t.notEnrolledHint}</span></p>}
       <div className="grid-2" style={{ marginTop: 22 }}>
         <article className="card">
           <div className="eyebrow">{t.continue}</div>

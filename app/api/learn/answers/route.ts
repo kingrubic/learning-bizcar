@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { saveAnswers } from "@/lib/access";
+import { canWriteLessons, saveAnswers } from "@/lib/access";
 
 export async function POST(request: Request) {
   const user = await getSession();
-  if (!user || user.role !== "user") return NextResponse.json({ error: "Không có quyền lưu bài." }, { status: 403 });
+  if (!user || !(await canWriteLessons(user))) return NextResponse.json({ error: "Không có quyền lưu bài." }, { status: 403 });
   const body = await request.json().catch(() => null) as {
     lessonNumber?: number; answers?: unknown; phase?: string; phasesDone?: string[]; progressPercent?: number;
   } | null;

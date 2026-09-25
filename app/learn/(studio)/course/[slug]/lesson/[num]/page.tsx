@@ -15,10 +15,9 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   if (!meta) notFound();
   const user = await getSession();
   if (!user) redirect("/learn/login");
-  if (user.role !== "user") redirect("/learn/dashboard");
   if (!(await canSee(user, "map"))) redirect("/learn/profile");
   const enrollment = await enrollmentFor(user.id);
-  if (!enrollment) redirect("/learn/dashboard");
+  if (!enrollment || enrollment.member_role !== "learner") redirect("/learn/dashboard");
   const state = await learningState(user.id);
   if (slug !== state.course.slug) notFound();
   if (!(await lessonPublished(number)) || !(await isLessonUnlocked(user.id, number))) redirect(`/learn/course/${state.course.slug}`);
@@ -35,7 +34,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
     title: item.title,
     framework: item.framework,
     status: "not_started" as const,
-    unlocked: user.role !== "user" || await isLessonUnlocked(user.id, item.number),
+    unlocked: await isLessonUnlocked(user.id, item.number),
   })));
   return (
     <LessonExperience

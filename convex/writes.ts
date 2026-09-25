@@ -126,6 +126,39 @@ export const createLearner = mutation({
   },
 });
 
+export const enrollSelf = mutation({
+  args: { ...secret, actorId: v.number(), cohortId: v.number() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const actor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.actorId)).unique();
+    if (!actor || actor.active !== 1 || actor.role !== "admin") {
+      return { error: "Chỉ quản trị đang hoạt động mới tự ghi danh." as const };
+    }
+    const cohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", args.cohortId)).unique();
+    if (!cohort) return { error: "Cohort không tồn tại." as const };
+    const seats = (await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", actor.legacyId)).collect())
+      .filter((row) => row.memberRole === "learner");
+    const same = seats.find((row) => row.cohortId === cohort.legacyId);
+    if (same) return { status: "already" as const, cohortId: cohort.legacyId, cohortName: cohort.name };
+    const other = seats[0];
+    if (other) {
+      const otherCohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", other.cohortId)).unique();
+      return { status: "other" as const, cohortId: other.cohortId, cohortName: otherCohort?.name ?? "" };
+    }
+    const enrollmentId = await nextId(ctx, "enrollments");
+    await ctx.db.insert("enrollments", {
+      legacyId: enrollmentId,
+      userId: actor.legacyId,
+      cohortId: cohort.legacyId,
+      courseId: cohort.courseId,
+      memberRole: "learner",
+      createdAt: now(),
+    });
+    await log(ctx, actor.legacyId, "enrollment", "user", String(actor.legacyId), `self:${cohort.name}`);
+    return { status: "enrolled" as const, cohortId: cohort.legacyId, cohortName: cohort.name };
+  },
+});
+
 export const setAccountActive = mutation({
   args: { ...secret, actorId: v.number(), userId: v.number(), active: v.boolean() },
   handler: async (ctx, args) => {
