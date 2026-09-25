@@ -36,6 +36,7 @@
   ],
   "exclude": [
     "node_modules",
-    "source"
+    "source",
+    "lib/discussion-access.check.ts"
   ]
 }
