@@ -11,7 +11,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   return (
     <main>
       <h1 className="serif">Chương trình</h1>
-      <p className="muted">Khoá mới nhận bản sao 21 bài từ khoá nguồn: cùng nội dung tương tác, bài làm học viên không đi theo. Sau đó tạo lớp cho khoá mới ở mục Lớp học.</p>
+      <p className="muted">Khoá mới nhận bản sao 27 bài từ khoá nguồn: cùng nội dung tương tác, bài làm học viên không đi theo. Sau đó tạo lớp cho khoá mới ở mục Lớp học.</p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       <form action={cloneCourse} className="card" style={{ marginTop: 12 }}>
         <h2>Tạo khoá từ khoá có sẵn</h2>

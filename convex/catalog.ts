@@ -27,6 +27,12 @@ export const LESSONS = [
   { number: 19, title: "F-Tread", framework: "4C1R", summary: "Cash Conversion, Cost & Obligation, Capital Allocation, Capital Productivity, Financial Resilience. Sức bám và lực đẩy tài chính.", group: "FINANCE WHEEL", hasReport: false, storageKey: "bmdo-k03-buoi19-ftread-v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "F-Tread", summaryEn: "Cash Conversion, Cost and Obligation, Capital Allocation, Capital Productivity, Financial Resilience." },
   { number: 20, title: "GTS / KTO", framework: "KTO", summary: "Gearbox & Transmission System. KAROT, Transmission Flow và Operating Control chuyển mục tiêu thành chuyển động có phối hợp.", group: "TRANSMISSION", hasReport: true, storageKey: "bmdo_k03_buoi20_gts_kto_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "GTS / KTO", summaryEn: "Gearbox and Transmission System. KAROT, Transmission Flow, and Operating Control turn a target into coordinated motion." },
   { number: 21, title: "Chassis / SGD", framework: "SGD", summary: "Chassis System. Structure, Governance và Decision Rights thiết kế khung gầm để doanh nghiệp gánh tải mà không mất ổn định.", group: "CHASSIS", hasReport: false, storageKey: "bmdo_k03_buoi21_chassis_sgd_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Chassis / SGD", summaryEn: "Chassis System. Structure, Governance, and Decision Rights design the enterprise frame so the company can carry load without losing stability." },
+  { number: 22, title: "Brand Shell / ILS", framework: "ILS", summary: "Brand Shell. Identity, Language và Signals để doanh nghiệp được nhận ra, hiểu đúng và được kiểm chứng tại Encounter Point.", group: "BRAND SHELL", hasReport: false, storageKey: "bmdo_k03_buoi22_brand_shell_ils_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Brand Shell / ILS", summaryEn: "Brand Shell. Identity, Language, and Signals so the company is recognized, understood correctly, and verified at the encounter point." },
+  { number: 23, title: "Environment & Road / CTR", framework: "CTR", summary: "Environment & Road. Climate, Terrain và Road giúp đọc khí hậu, hiểu địa hình và chọn con đường phù hợp với MyBizCar.", group: "ENVIRONMENT", hasReport: false, storageKey: "bmdo_k03_buoi23_environment_road_ctr_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Environment & Road / CTR", summaryEn: "Environment and Road. Climate, Terrain, and Road read the climate, understand the terrain, and choose a path that fits MyBizCar." },
+  { number: 24, title: "BizCar Fuel / 6FT", framework: "6FT", summary: "BizCar Fuel. Sáu nguồn nhiên liệu — tri thức, nhân tài, thông tin, thương hiệu, tài chính và quan hệ tin cậy — được tiếp cận, huy động và chuyển hóa thành lực đẩy.", group: "FUEL", hasReport: false, storageKey: "bmdo_k03_buoi24_bizcar_fuel_6ft_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "BizCar Fuel / 6FT", summaryEn: "BizCar Fuel. Six fuel tanks — knowledge, talent, information, brand, finance, and trusted relationships — accessed, mobilized, and converted into driving force." },
+  { number: 25, title: "BizCar Oil / BOILE", framework: "BOILE", summary: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices và Expression cho thấy văn hóa đang được sống qua bằng chứng lặp lại.", group: "OIL", hasReport: false, storageKey: "bmdo_k03_buoi25_bizcar_oil_boile_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "BizCar Oil / BOILE", summaryEn: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices, and Expression show the culture that is lived through repeated evidence." },
+  { number: 26, title: "Steering / ICHOR", framework: "ICHOR", summary: "Steering Wheel & Driver. Interpret, Choose, Hold the Course, Own the Consequences và Recalibrate để diễn giải, lựa chọn, giữ hướng, sở hữu hệ quả và hiệu chỉnh.", group: "STEERING", hasReport: false, storageKey: "bmdo_k03_buoi26_ichor_decision_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Steering / ICHOR", summaryEn: "Steering Wheel and Driver. Interpret, Choose, Hold the Course, Own the Consequences, and Recalibrate so a decision is interpreted, chosen, held, owned, and recalibrated." },
+  { number: 27, title: "3E3S Matrix", framework: "3E3S", summary: "3E3S Leadership Matrix. Energy, Enlightenment và Executive Capacity trên Self, Shared và System để khả lực lãnh đạo không phụ thuộc một người.", group: "STEERING", hasReport: false, storageKey: "bmdo_k03_buoi27_3e3s_matrix_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "3E3S Matrix", summaryEn: "3E3S Leadership Matrix. Energy, Enlightenment, and Executive Capacity across Self, Shared, and System so leadership capacity does not depend on one person." },
 ];
 
 export const CMS_BLOCKS: [string, "vi" | "en", string][] = [
@@ -36,8 +42,8 @@ export const CMS_BLOCKS: [string, "vi" | "en", string][] = [
   ["login.story", "en", "A business transformation operating lab. Each learner designs the MyBizCar of their own company — from the 12 management domains to the management design portfolio."],
   ["login.tagline", "vi", "Kết tri thức. Nối giá trị."],
   ["login.tagline", "en", "Connect knowledge. Connect value."],
-  ["map.lede", "vi", "Hai mươi mốt buổi thiết kế MyBizCar, từ 12 miền quản trị đến khung gầm SGD."],
-  ["map.lede", "en", "Twenty-one design sessions for MyBizCar, from the 12 management domains to the SGD chassis."],
+  ["map.lede", "vi", "Hai mươi bảy buổi thiết kế MyBizCar, từ 12 miền quản trị đến ma trận lãnh đạo 3E3S."],
+  ["map.lede", "en", "Twenty-seven design sessions for MyBizCar, from the 12 management domains to the 3E3S leadership matrix."],
 ];
 
 export const PREVIOUS_MAP_LEDE: Record<"vi" | "en", string> = {
@@ -48,6 +54,11 @@ export const PREVIOUS_MAP_LEDE: Record<"vi" | "en", string> = {
 export const SESSION20_MAP_LEDE: Record<"vi" | "en", string> = {
   vi: "Hai mươi buổi thiết kế MyBizCar, từ 12 miền quản trị đến hệ truyền động GTS.",
   en: "Twenty design sessions for MyBizCar, from the 12 management domains to the GTS transmission.",
+};
+
+export const SESSION21_MAP_LEDE: Record<"vi" | "en", string> = {
+  vi: "Hai mươi mốt buổi thiết kế MyBizCar, từ 12 miền quản trị đến khung gầm SGD.",
+  en: "Twenty-one design sessions for MyBizCar, from the 12 management domains to the SGD chassis.",
 };
 
 export const PERMISSION_PRESETS = [

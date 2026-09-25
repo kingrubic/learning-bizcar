@@ -20,4 +20,10 @@ export const lessonEn: Record<number, { title: string; summary: string }> = {
   19: { title: "F-Tread", summary: "Cash Conversion, Cost and Obligation, Capital Allocation, Capital Productivity, Financial Resilience." },
   20: { title: "GTS / KTO", summary: "Gearbox and Transmission System. KAROT, Transmission Flow, and Operating Control turn a target into coordinated motion." },
   21: { title: "Chassis / SGD", summary: "Chassis System. Structure, Governance, and Decision Rights design the enterprise frame so the company can carry load without losing stability." },
+  22: { title: "Brand Shell / ILS", summary: "Brand Shell. Identity, Language, and Signals so the company is recognized, understood correctly, and verified at the encounter point." },
+  23: { title: "Environment & Road / CTR", summary: "Environment and Road. Climate, Terrain, and Road read the climate, understand the terrain, and choose a path that fits MyBizCar." },
+  24: { title: "BizCar Fuel / 6FT", summary: "BizCar Fuel. Six fuel tanks — knowledge, talent, information, brand, finance, and trusted relationships — accessed, mobilized, and converted into driving force." },
+  25: { title: "BizCar Oil / BOILE", summary: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices, and Expression show the culture that is lived through repeated evidence." },
+  26: { title: "Steering / ICHOR", summary: "Steering Wheel and Driver. Interpret, Choose, Hold the Course, Own the Consequences, and Recalibrate so a decision is interpreted, chosen, held, owned, and recalibrated." },
+  27: { title: "3E3S Matrix", summary: "3E3S Leadership Matrix. Energy, Enlightenment, and Executive Capacity across Self, Shared, and System so leadership capacity does not depend on one person." },
 };
