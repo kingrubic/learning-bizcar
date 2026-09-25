@@ -26,6 +26,7 @@ export const LESSONS = [
   { number: 18, title: "F-Casing", framework: "RFE", summary: "Clear Rules, Smooth Flow, Verifiable Evidence. Tình huống tài chính được nhìn thấy và kiểm chứng.", group: "FINANCE WHEEL", hasReport: true, storageKey: "bmdo_k03_buoi18_rfe_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "F-Casing", summaryEn: "Clear Rules, Smooth Flow, Verifiable Evidence. A financial situation that can be seen and checked." },
   { number: 19, title: "F-Tread", framework: "4C1R", summary: "Cash Conversion, Cost & Obligation, Capital Allocation, Capital Productivity, Financial Resilience. Sức bám và lực đẩy tài chính.", group: "FINANCE WHEEL", hasReport: false, storageKey: "bmdo-k03-buoi19-ftread-v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "F-Tread", summaryEn: "Cash Conversion, Cost and Obligation, Capital Allocation, Capital Productivity, Financial Resilience." },
   { number: 20, title: "GTS / KTO", framework: "KTO", summary: "Gearbox & Transmission System. KAROT, Transmission Flow và Operating Control chuyển mục tiêu thành chuyển động có phối hợp.", group: "TRANSMISSION", hasReport: true, storageKey: "bmdo_k03_buoi20_gts_kto_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "GTS / KTO", summaryEn: "Gearbox and Transmission System. KAROT, Transmission Flow, and Operating Control turn a target into coordinated motion." },
+  { number: 21, title: "Chassis / SGD", framework: "SGD", summary: "Chassis System. Structure, Governance và Decision Rights thiết kế khung gầm để doanh nghiệp gánh tải mà không mất ổn định.", group: "CHASSIS", hasReport: false, storageKey: "bmdo_k03_buoi21_chassis_sgd_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Chassis / SGD", summaryEn: "Chassis System. Structure, Governance, and Decision Rights design the enterprise frame so the company can carry load without losing stability." },
 ];
 
 export const CMS_BLOCKS: [string, "vi" | "en", string][] = [
@@ -35,13 +36,18 @@ export const CMS_BLOCKS: [string, "vi" | "en", string][] = [
   ["login.story", "en", "A business transformation operating lab. Each learner designs the MyBizCar of their own company — from the 12 management domains to the management design portfolio."],
   ["login.tagline", "vi", "Kết tri thức. Nối giá trị."],
   ["login.tagline", "en", "Connect knowledge. Connect value."],
-  ["map.lede", "vi", "Hai mươi buổi thiết kế MyBizCar, từ 12 miền quản trị đến hệ truyền động GTS."],
-  ["map.lede", "en", "Twenty design sessions for MyBizCar, from the 12 management domains to the GTS transmission."],
+  ["map.lede", "vi", "Hai mươi mốt buổi thiết kế MyBizCar, từ 12 miền quản trị đến khung gầm SGD."],
+  ["map.lede", "en", "Twenty-one design sessions for MyBizCar, from the 12 management domains to the SGD chassis."],
 ];
 
 export const PREVIOUS_MAP_LEDE: Record<"vi" | "en", string> = {
   vi: "Mười chín buổi thiết kế MyBizCar, từ 12 miền quản trị đến sức bám tài chính.",
   en: "Nineteen design sessions for MyBizCar, from the 12 management domains to financial traction.",
+};
+
+export const SESSION20_MAP_LEDE: Record<"vi" | "en", string> = {
+  vi: "Hai mươi buổi thiết kế MyBizCar, từ 12 miền quản trị đến hệ truyền động GTS.",
+  en: "Twenty design sessions for MyBizCar, from the 12 management domains to the GTS transmission.",
 };
 
 export const PERMISSION_PRESETS = [

@@ -1,6 +1,6 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE } from "./catalog";
+import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE } from "./catalog";
 import { gate, nextId, now } from "./helpers";
 
 async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
@@ -134,6 +134,76 @@ export const addSession20 = mutation({
     }
     const ledesUpdated: string[] = [];
     for (const locale of ["vi", "en"] as const) {
+      const next = SESSION20_MAP_LEDE[locale];
+      const block = await ctx.db.query("cmsBlocks").withIndex("by_key_locale", (q) => q.eq("key", "map.lede").eq("locale", locale)).unique();
+      if (!block) {
+        await ctx.db.insert("cmsBlocks", { key: "map.lede", locale, body: next, updatedAt: createdAt });
+        ledesUpdated.push(locale);
+        continue;
+      }
+      if (block.body === PREVIOUS_MAP_LEDE[locale]) {
+        await ctx.db.patch(block._id, { body: next, updatedAt: createdAt });
+        ledesUpdated.push(locale);
+      }
+    }
+    return {
+      ok: true,
+      courses: courses.length,
+      lessonsInserted: insertedLessons.length,
+      lessonIds: insertedLessons,
+      cmsInserted,
+      ledesUpdated,
+    };
+  },
+});
+
+export const addSession21 = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const spec = LESSONS.find((lesson) => lesson.number === 21);
+    if (!spec) throw new Error("LESSON_21_MISSING");
+    const createdAt = now();
+    const courses = await ctx.db.query("courses").collect();
+    const insertedLessons: { courseId: number; lessonId: number }[] = [];
+    for (const course of courses) {
+      const existing = await ctx.db
+        .query("lessons")
+        .withIndex("by_course_number", (q) => q.eq("courseId", course.legacyId).eq("number", spec.number))
+        .unique();
+      if (existing) continue;
+      const lessonId = await nextId(ctx, "lessons");
+      await ctx.db.insert("lessons", {
+        legacyId: lessonId,
+        courseId: course.legacyId,
+        number: spec.number,
+        title: spec.title,
+        framework: spec.framework,
+        summary: spec.summary,
+        groupName: spec.group,
+        hasReport: spec.hasReport ? 1 : 0,
+        storageKey: spec.storageKey,
+        contentVersion: spec.contentVersion,
+        schemaVersion: spec.schemaVersion,
+      });
+      insertedLessons.push({ courseId: course.legacyId, lessonId });
+    }
+    const cms = await ctx.db.query("cmsLessons").withIndex("by_number", (q) => q.eq("number", spec.number)).unique();
+    let cmsInserted = false;
+    if (!cms) {
+      await ctx.db.insert("cmsLessons", {
+        number: spec.number,
+        titleVi: spec.title,
+        titleEn: spec.titleEn,
+        summaryVi: spec.summary,
+        summaryEn: spec.summaryEn,
+        published: 1,
+        updatedAt: createdAt,
+      });
+      cmsInserted = true;
+    }
+    const ledesUpdated: string[] = [];
+    for (const locale of ["vi", "en"] as const) {
       const next = CMS_BLOCKS.find((block) => block[0] === "map.lede" && block[1] === locale)?.[2];
       if (!next) continue;
       const block = await ctx.db.query("cmsBlocks").withIndex("by_key_locale", (q) => q.eq("key", "map.lede").eq("locale", locale)).unique();
@@ -142,7 +212,7 @@ export const addSession20 = mutation({
         ledesUpdated.push(locale);
         continue;
       }
-      if (block.body === PREVIOUS_MAP_LEDE[locale]) {
+      if (block.body === SESSION20_MAP_LEDE[locale]) {
         await ctx.db.patch(block._id, { body: next, updatedAt: createdAt });
         ledesUpdated.push(locale);
       }
