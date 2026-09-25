@@ -28,6 +28,9 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
     <main>
       <h1 className="serif" style={{ fontSize: 42 }}>{t.adminDesk}</h1>
       <p className="muted">Theo dõi học viên, cohort và tiến độ. Không có bảng xếp hạng.</p>
+      <p className="row-actions" style={{ marginTop: 12 }}>
+        <Link className="btn gold" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link>
+      </p>
       <form className="row-actions" method="get">
         <select name="cohort" defaultValue={filters.cohort || ""} aria-label="Cohort">
           <option value="">Mọi cohort</option>

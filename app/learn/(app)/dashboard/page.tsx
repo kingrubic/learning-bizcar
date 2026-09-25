@@ -45,6 +45,12 @@ export default async function DashboardPage() {
         </p>
       )}
       {!enrollment && user.role !== "admin" && <p className="notice"><strong>{t.notEnrolled}</strong><span>{t.notEnrolledHint}</span></p>}
+      <article className="card" style={{ marginTop: 22 }}>
+        <div className="eyebrow">{t.discussionEyebrow}</div>
+        <h2 className="serif" style={{ fontSize: 32 }}>{t.discussionGroupCta}</h2>
+        <p className="muted">{t.discussionGroupHint}</p>
+        <Link className="btn gold" href="/learn/discussion">{t.discussionGroupCta}</Link>
+      </article>
       <div className="grid-2" style={{ marginTop: 22 }}>
         <article className="card">
           <div className="eyebrow">{t.continue}</div>

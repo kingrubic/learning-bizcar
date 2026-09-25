@@ -4,11 +4,13 @@ import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE } fr
 import { gate, nextId, now } from "./helpers";
 
 async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
-  const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", "Học viên")).unique();
-  if (!group) return;
-  const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
-  if (links.some((row) => row.menuKey === "discussion")) return;
-  await ctx.db.insert("permissionGroupMenus", { groupId: group.legacyId, menuKey: "discussion" });
+  for (const name of ["Học viên", "Theo dõi lớp"]) {
+    const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", name)).unique();
+    if (!group) continue;
+    const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
+    if (links.some((row) => row.menuKey === "discussion")) continue;
+    await ctx.db.insert("permissionGroupMenus", { groupId: group.legacyId, menuKey: "discussion" });
+  }
 }
 
 export const ensureCatalog = mutation({

@@ -43,15 +43,26 @@ export const MENUS: MenuItem[] = [
   { key: "admin-cms", label: "CMS", href: "/admin/cms", area: "admin", adminOnly: true },
 ];
 
+function withMenu(menus: MenuItem[], key: string) {
+  if (menus.some((item) => item.key === key)) return menus;
+  const item = MENUS.find((entry) => entry.key === key);
+  if (!item) return menus;
+  const anchor = menus.findIndex((entry) => entry.key === "tasks" || entry.key === "admin-cohorts");
+  const next = [...menus];
+  next.splice(anchor >= 0 ? anchor + 1 : next.length, 0, item);
+  return next;
+}
+
 export async function menusFor(user: SessionUser) {
-  const base = user.role === "admin"
-    ? MENUS
-    : user.role === "mod"
-      ? MENUS.filter((item) => !item.adminOnly)
-      : await learnerMenus(user);
-  if (user.role !== "user") return base;
-  const course = (await learningState(user.id)).course;
-  return base.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${course.slug}` } : item);
+  if (user.role === "admin" || user.role === "mod") {
+    const base = user.role === "admin" ? MENUS : MENUS.filter((item) => !item.adminOnly);
+    return withMenu(withMenu(base, "discussion"), "admin-discussion");
+  }
+  const menus = await learnerMenus(user);
+  const state = await learningState(user.id);
+  const learnAccess = menus.some((item) => item.area === "learn") || Boolean(state.enrollment);
+  const next = learnAccess ? withMenu(menus, "discussion") : menus;
+  return next.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item);
 }
 
 async function learnerMenus(user: SessionUser) {

@@ -19,7 +19,9 @@ function stamp(iso: string, locale: Locale) {
 
 export default async function DiscussionPage({ searchParams }: { searchParams: Promise<{ channel?: string; error?: string }> }) {
   const user = await getSession();
-  if (!user || !(await canSee(user, "discussion"))) redirect("/learn/profile");
+  if (!user) redirect("/learn/login");
+  const staff = user.role === "admin" || user.role === "mod";
+  if (!staff && !(await canSee(user, "discussion"))) redirect("/learn/profile");
   const params = await searchParams;
   const locale = await getLocale();
   const t = messages(locale);
@@ -51,6 +53,9 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
       <div className="eyebrow">{t.discussionEyebrow}</div>
       <h1 className="serif">{t.discussionTitle}</h1>
       <p className="lede">{t.discussionLede}</p>
+      {(home.enrolled || home.staff) && !home.channels.some((item) => item.kind === "group" && !item.archived) && (
+        <p className="muted">{t.discussionNoGroups}</p>
+      )}
       {(note || threadNote) && <p className="notice"><strong>{note || threadNote}</strong></p>}
       {home.channels.length === 0 && <p className="muted">{t.discussionNoChannel}</p>}
       {home.channels.length > 0 && (
