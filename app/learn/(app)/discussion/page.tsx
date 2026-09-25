@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DiscussionComposer, DiscussionLive, DiscussionThread } from "@/components/learning/DiscussionPane";
+import { DiscussionSummaryEditor } from "@/components/learning/DiscussionSummary";
+import { summaryBullets } from "@/convex/discussionAccess";
 import { getSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
 import { discussionNotice } from "@/lib/discussion-copy";
-import { messages, type Locale } from "@/lib/i18n";
+import { messages, type Copy, type Locale } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canSee } from "@/lib/permissions";
 
@@ -22,7 +24,7 @@ function stamp(iso: string, locale: Locale) {
   return date.toLocaleString(locale === "en" ? "en-GB" : "vi-VN", { dateStyle: "medium", timeStyle: "short" });
 }
 
-export default async function DiscussionPage({ searchParams }: { searchParams: Promise<{ channel?: string; error?: string }> }) {
+export default async function DiscussionPage({ searchParams }: { searchParams: Promise<{ channel?: string; error?: string; tab?: string }> }) {
   const user = await getSession();
   if (!user) redirect("/learn/login");
   const staff = user.role === "admin" || user.role === "mod";
@@ -47,12 +49,17 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
   }
   const requested = Number(params.channel);
   const channelId = Number.isInteger(requested) && requested > 0 ? requested : home.channels[0]?.id;
-  const view = channelId
+  const tab = params.tab === "summary" ? "summary" : "chat";
+  const view = tab === "chat" && channelId
     ? await q((convex, secret) => convex.query(api.discussion.thread, { secret, userId: user.id, channelId }))
     : null;
-  const threadNote = view && view.error ? discussionNotice(t, view.error) : null;
+  const summary = tab === "summary" && channelId
+    ? await q((convex, secret) => convex.query(api.discussionSummary.view, { secret, userId: user.id, channelId }))
+    : null;
+  const threadNote = view && view.error ? discussionNotice(t, view.error) : summary && summary.error ? discussionNotice(t, summary.error) : null;
   const multi = new Set(home.channels.map((channel) => channel.cohortId)).size > 1;
-  const channel = view && !view.error ? view.channel : null;
+  const channel = view && !view.error ? view.channel : summary && !summary.error ? summary.channel : null;
+  const channelHref = (id: number) => tab === "summary" ? `/learn/discussion?channel=${id}&tab=summary` : `/learn/discussion?channel=${id}`;
   return (
     <main className="page">
       <div className="eyebrow">{t.discussionEyebrow}</div>
@@ -68,7 +75,7 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
           <aside className="card">
             <nav className="discussion-channels" aria-label={t.discussionTitle}>
               {home.channels.map((item) => (
-                <Link key={item.id} className={item.id === channel?.id ? "btn dark" : "btn"} href={`/learn/discussion?channel=${item.id}`} aria-current={item.id === channel?.id ? "page" : undefined}>
+                <Link key={item.id} className={item.id === channel?.id ? "btn dark" : "btn"} href={channelHref(item.id)} aria-current={item.id === channel?.id ? "page" : undefined}>
                   <span>{item.kind === "class" ? t.discussionClass : item.name}{multi ? <small style={{ display: "block", opacity: 0.75 }}>{item.cohortName}</small> : null}</span>
                   {item.archived ? <small>{t.discussionArchived}</small> : null}
                 </Link>
@@ -78,15 +85,23 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
           </aside>
           <section className="card">
             {!channel && <p className="muted">{t.discussionPick}</p>}
-            {channel && view && !view.error && (
+            {channel && (
               <>
                 <div className="row-actions" style={{ justifyContent: "space-between" }}>
                   <div>
                     <div className="eyebrow">{channel.cohortName}{channel.archived ? ` · ${t.discussionArchived}` : ""}</div>
                     <h2 className="serif">{channel.kind === "class" ? t.discussionClass : channel.name}</h2>
                   </div>
-                  <DiscussionLive label={t.discussionRefresh} />
+                  {tab === "chat" && <DiscussionLive label={t.discussionRefresh} />}
                 </div>
+                <div className="discussion-tabs" role="tablist">
+                  <Link className={tab === "chat" ? "btn dark" : "btn"} role="tab" aria-selected={tab === "chat"} href={`/learn/discussion?channel=${channel.id}`}>{t.discussionTab}</Link>
+                  <Link className={tab === "summary" ? "btn dark" : "btn"} role="tab" aria-selected={tab === "summary"} href={`/learn/discussion?channel=${channel.id}&tab=summary`}>{t.summaryTab}</Link>
+                </div>
+              </>
+            )}
+            {channel && tab === "chat" && view && !view.error && (
+              <>
                 {view.trimmed && <p className="muted">{t.discussionTrimmed}</p>}
                 <DiscussionThread tail={String(view.messages.at(-1)?.id ?? "empty")}>
                   {view.messages.length === 0 && <p className="muted">{t.discussionEmpty}</p>}
@@ -111,7 +126,7 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
                     </article>
                   ))}
                 </DiscussionThread>
-                {channel.canPost ? (
+                {view.channel.canPost ? (
                   <DiscussionComposer
                     key={channel.id}
                     channelId={channel.id}
@@ -131,9 +146,74 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
                 ) : <p className="muted">{t.discussionArchivedHint}</p>}
               </>
             )}
+            {channel && tab === "summary" && summary && !summary.error && (
+              <SummaryPane
+                channelId={channel.id}
+                canEdit={summary.canEdit}
+                summary={summary.summary}
+                recent={summary.recent}
+                locale={locale}
+                t={t}
+              />
+            )}
           </section>
         </div>
       )}
     </main>
+  );
+}
+
+function SummaryPane({
+  channelId,
+  canEdit,
+  summary,
+  recent,
+  locale,
+  t,
+}: {
+  channelId: number;
+  canEdit: boolean;
+  summary: { title: string; points: string; conclusion: string; notes: string; updatedAt: string; editorName: string } | null;
+  recent: { authorName: string; body: string; fileCount: number }[];
+  locale: Locale;
+  t: Copy;
+}) {
+  const bullets = summaryBullets(summary?.points ?? "");
+  const hasBody = Boolean(summary && (summary.title || bullets.length > 0 || summary.conclusion || summary.notes));
+  return (
+    <div className="summary-doc">
+      {summary && <p className="muted">{t.summaryUpdated.replace("{time}", stamp(summary.updatedAt, locale)).replace("{name}", summary.editorName)}</p>}
+      {!canEdit && <p className="muted">{t.summaryReadOnly}</p>}
+      <p><Link className="btn gold" href={`/learn/discussion/present?channel=${channelId}`}>{t.summaryPresent}</Link></p>
+      {canEdit ? (
+        <DiscussionSummaryEditor
+          key={channelId}
+          channelId={channelId}
+          title={summary?.title ?? ""}
+          points={summary?.points ?? ""}
+          conclusion={summary?.conclusion ?? ""}
+          notes={summary?.notes ?? ""}
+          recent={recent}
+          labels={{
+            title: t.summaryTitle,
+            points: t.summaryPoints,
+            conclusion: t.summaryConclusion,
+            notes: t.summaryNotes,
+            save: t.summarySave,
+            suggest: t.summarySuggest,
+            draftHint: t.summaryDraftHint,
+            noDraft: t.summaryNoDraft,
+            fileLine: t.summaryFileLine,
+          }}
+        />
+      ) : hasBody && summary ? (
+        <>
+          {summary.title ? <h3 className="serif">{summary.title}</h3> : null}
+          {bullets.length > 0 && <ul className="summary-points">{bullets.map((line, index) => <li key={index}>{line}</li>)}</ul>}
+          {summary.conclusion ? <p style={{ whiteSpace: "pre-wrap" }}>{summary.conclusion}</p> : null}
+          {summary.notes ? <><div className="eyebrow">{t.summaryNotes}</div><p style={{ whiteSpace: "pre-wrap" }}>{summary.notes}</p></> : null}
+        </>
+      ) : <p className="muted">{t.summaryEmpty}</p>}
+    </div>
   );
 }

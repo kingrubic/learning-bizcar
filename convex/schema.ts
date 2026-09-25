@@ -196,6 +196,16 @@ export default defineSchema({
     size: v.number(),
     contentType: v.string(),
   }).index("by_legacy", ["legacyId"]).index("by_message", ["messageId"]).index("by_storage", ["storageId"]),
+  discussionSummaries: defineTable({
+    legacyId: v.number(),
+    channelId: v.number(),
+    title: v.string(),
+    points: v.string(),
+    conclusion: v.string(),
+    notes: v.string(),
+    editorId: v.number(),
+    updatedAt: v.string(),
+  }).index("by_legacy", ["legacyId"]).index("by_channel", ["channelId"]),
   notifications: defineTable({
     legacyId: v.number(),
     userId: v.number(),

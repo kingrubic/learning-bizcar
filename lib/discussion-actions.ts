@@ -156,6 +156,26 @@ export async function archiveDiscussionGroup(formData: FormData) {
   deskRedirect(cohortId, "error" in result ? result.error : undefined);
 }
 
+export async function saveDiscussionSummary(formData: FormData) {
+  const user = await staff();
+  const channelId = Number(formData.get("channelId"));
+  const result = await q((convex, secret) => convex.mutation(api.discussionSummary.save, {
+    secret,
+    userId: user.id,
+    channelId,
+    title: String(formData.get("title") ?? ""),
+    points: String(formData.get("points") ?? ""),
+    conclusion: String(formData.get("conclusion") ?? ""),
+    notes: String(formData.get("notes") ?? ""),
+  }));
+  revalidatePath("/learn/discussion");
+  const params = new URLSearchParams();
+  if (Number.isInteger(channelId) && channelId > 0) params.set("channel", String(channelId));
+  params.set("tab", "summary");
+  if ("error" in result && result.error) params.set("error", result.error === "long" ? "summary" : result.error);
+  redirect(`/learn/discussion?${params.toString()}`);
+}
+
 export async function deleteDiscussionGroup(formData: FormData) {
   const user = await staff();
   const cohortId = Number(formData.get("cohortId"));

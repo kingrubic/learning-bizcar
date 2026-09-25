@@ -11,6 +11,7 @@
 import type * as catalog from "../catalog.js";
 import type * as discussion from "../discussion.js";
 import type * as discussionAccess from "../discussionAccess.js";
+import type * as discussionSummary from "../discussionSummary.js";
 import type * as helpers from "../helpers.js";
 import type * as notifications from "../notifications.js";
 import type * as reads from "../reads.js";
@@ -27,6 +28,7 @@ declare const fullApi: ApiFromModules<{
   catalog: typeof catalog;
   discussion: typeof discussion;
   discussionAccess: typeof discussionAccess;
+  discussionSummary: typeof discussionSummary;
   helpers: typeof helpers;
   notifications: typeof notifications;
   reads: typeof reads;
