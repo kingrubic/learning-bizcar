@@ -1,8 +1,9 @@
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { channelAccess, DISCUSSION_BODY_MAX, DISCUSSION_HISTORY_MAX, DISCUSSION_NAME_MAX } from "./discussionAccess";
+import { channelAccess, DISCUSSION_BODY_MAX, DISCUSSION_FILE_BYTES, DISCUSSION_FILE_MAX, DISCUSSION_HISTORY_MAX, DISCUSSION_NAME_MAX } from "./discussionAccess";
 import { gate, nextId, now, userByLegacy } from "./helpers";
+import { notifyDiscussionPost } from "./notifications";
 
 const secret = { secret: v.string() };
 
@@ -210,10 +211,31 @@ export const thread = query({
     const trimmed = rows.length > DISCUSSION_HISTORY_MAX;
     const slice = trimmed ? rows.slice(-DISCUSSION_HISTORY_MAX) : rows;
     const authors = new Map<number, string>();
+    const messages = [];
     for (const row of slice) {
-      if (authors.has(row.authorId)) continue;
-      const author = await userByLegacy(ctx, row.authorId);
-      authors.set(row.authorId, author?.displayName ?? "—");
+      if (!authors.has(row.authorId)) {
+        const author = await userByLegacy(ctx, row.authorId);
+        authors.set(row.authorId, author?.displayName ?? "—");
+      }
+      const files = await ctx.db.query("discussionAttachments").withIndex("by_message", (q) => q.eq("messageId", row.legacyId)).collect();
+      const attachments = [];
+      for (const file of files.sort((a, b) => a.legacyId - b.legacyId)) {
+        attachments.push({
+          id: file.legacyId,
+          fileName: file.fileName,
+          size: file.size,
+          contentType: file.contentType,
+          url: await ctx.storage.getUrl(file.storageId),
+        });
+      }
+      messages.push({
+        id: row.legacyId,
+        body: row.body,
+        createdAt: row.createdAt,
+        authorId: row.authorId,
+        authorName: authors.get(row.authorId) ?? "—",
+        attachments,
+      });
     }
     return {
       error: null,
@@ -227,13 +249,7 @@ export const thread = query({
         canPost: decision.post,
       },
       trimmed,
-      messages: slice.map((row) => ({
-        id: row.legacyId,
-        body: row.body,
-        createdAt: row.createdAt,
-        authorId: row.authorId,
-        authorName: authors.get(row.authorId) ?? "—",
-      })),
+      messages,
     };
   },
 });
@@ -290,25 +306,101 @@ export const desk = query({
 type RosterRow = { id: number; displayName: string; username: string; active: boolean };
 type DeskChannel = { id: number; kind: "class" | "group"; name: string; archived: boolean; memberIds: number[] };
 
-export const post = mutation({
-  args: { ...secret, userId: v.number(), channelId: v.number(), body: v.string() },
+const attachmentArg = v.object({
+  storageId: v.id("_storage"),
+  fileName: v.string(),
+  contentType: v.string(),
+});
+
+export const prepareUpload = mutation({
+  args: { ...secret, userId: v.number(), channelId: v.number() },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const body = args.body.trim();
-    if (!body) return { error: "empty" as const };
-    if (body.length > DISCUSSION_BODY_MAX) return { error: "long" as const };
     const access = await accessFor(ctx, args.userId);
     const channel = await channelByLegacy(ctx, args.channelId);
     if (!access || !channel) return { error: "missing" as const };
     const decision = await decide(ctx, access, channel);
     if (!decision.post) return { error: "forbidden" as const };
+    return { uploadUrl: await ctx.storage.generateUploadUrl() };
+  },
+});
+
+export const discardUploads = mutation({
+  args: { ...secret, userId: v.number(), storageIds: v.array(v.id("_storage")) },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const access = await accessFor(ctx, args.userId);
+    if (!access) return { ok: true as const };
+    for (const storageId of args.storageIds) {
+      const linked = await ctx.db.query("discussionAttachments").withIndex("by_storage", (q) => q.eq("storageId", storageId)).first();
+      if (linked) continue;
+      const meta = await ctx.storage.getMetadata(storageId);
+      if (meta) await ctx.storage.delete(storageId);
+    }
+    return { ok: true as const };
+  },
+});
+
+export const post = mutation({
+  args: { ...secret, userId: v.number(), channelId: v.number(), body: v.string(), attachments: v.array(attachmentArg) },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const body = args.body.trim();
+    if (!body && args.attachments.length === 0) return { error: "empty" as const };
+    if (body.length > DISCUSSION_BODY_MAX) return { error: "long" as const };
+    if (args.attachments.length > DISCUSSION_FILE_MAX) return { error: "files" as const };
+    const access = await accessFor(ctx, args.userId);
+    const channel = await channelByLegacy(ctx, args.channelId);
+    if (!access || !channel) return { error: "missing" as const };
+    const decision = await decide(ctx, access, channel);
+    if (!decision.post) return { error: "forbidden" as const };
+    const files: { storageId: typeof args.attachments[number]["storageId"]; fileName: string; size: number; contentType: string }[] = [];
+    for (const file of args.attachments) {
+      const meta = await ctx.storage.getMetadata(file.storageId);
+      if (!meta) return { error: "upload" as const };
+      if (meta.size > DISCUSSION_FILE_BYTES) {
+        await ctx.storage.delete(file.storageId);
+        return { error: "size" as const };
+      }
+      const fileName = file.fileName.trim().slice(0, 120) || "file";
+      files.push({
+        storageId: file.storageId,
+        fileName,
+        size: meta.size,
+        contentType: (meta.contentType || file.contentType || "application/octet-stream").slice(0, 160),
+      });
+    }
     const id = await nextId(ctx, "discussionMessages");
+    const createdAt = now();
     await ctx.db.insert("discussionMessages", {
       legacyId: id,
       channelId: channel.legacyId,
       authorId: access.userId,
       body,
-      createdAt: now(),
+      createdAt,
+    });
+    for (const file of files) {
+      const attachmentId = await nextId(ctx, "discussionAttachments");
+      await ctx.db.insert("discussionAttachments", {
+        legacyId: attachmentId,
+        messageId: id,
+        storageId: file.storageId,
+        fileName: file.fileName,
+        size: file.size,
+        contentType: file.contentType,
+      });
+    }
+    const author = await userByLegacy(ctx, access.userId);
+    await notifyDiscussionPost(ctx, {
+      channelId: channel.legacyId,
+      cohortId: channel.cohortId,
+      channelKind: channel.kind,
+      channelName: channel.name,
+      messageId: id,
+      authorId: access.userId,
+      authorName: author?.displayName ?? "—",
+      snippet: body.slice(0, 140),
+      fileCount: files.length,
     });
     return { ok: true as const };
   },
@@ -381,7 +473,14 @@ export const deleteGroup = mutation({
     const channel = await channelByLegacy(ctx, args.channelId);
     if (!access?.staff || !channel || channel.kind !== "group") return { error: "forbidden" as const };
     const messages = await ctx.db.query("discussionMessages").withIndex("by_channel", (q) => q.eq("channelId", channel.legacyId)).collect();
-    for (const row of messages) await ctx.db.delete(row._id);
+    for (const row of messages) {
+      const files = await ctx.db.query("discussionAttachments").withIndex("by_message", (q) => q.eq("messageId", row.legacyId)).collect();
+      for (const file of files) {
+        await ctx.storage.delete(file.storageId);
+        await ctx.db.delete(file._id);
+      }
+      await ctx.db.delete(row._id);
+    }
     const members = await ctx.db.query("discussionMembers").withIndex("by_channel", (q) => q.eq("channelId", channel.legacyId)).collect();
     for (const row of members) await ctx.db.delete(row._id);
     await ctx.db.delete(channel._id);

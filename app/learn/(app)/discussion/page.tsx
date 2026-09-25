@@ -3,13 +3,18 @@ import { redirect } from "next/navigation";
 import { DiscussionComposer, DiscussionLive, DiscussionThread } from "@/components/learning/DiscussionPane";
 import { getSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
-import { postDiscussionMessage } from "@/lib/discussion-actions";
 import { discussionNotice } from "@/lib/discussion-copy";
 import { messages, type Locale } from "@/lib/i18n";
 import { getLocale } from "@/lib/locale";
 import { canSee } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 102.4) / 10} KB`;
+  return `${Math.round(bytes / (1024 * 102.4)) / 10} MB`;
+}
 
 function stamp(iso: string, locale: Locale) {
   const date = new Date(iso);
@@ -89,7 +94,20 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
                     <article key={message.id} className="discussion-msg">
                       <strong>{message.authorName}</strong>
                       <span className="muted"> · {stamp(message.createdAt, locale)}</span>
-                      <p>{message.body}</p>
+                      {message.body ? <p>{message.body}</p> : null}
+                      {message.attachments.length > 0 && (
+                        <ul className="discussion-files">
+                          {message.attachments.map((file) => (
+                            <li key={file.id}>
+                              {file.url && file.contentType.startsWith("image/") && <img src={file.url} alt={file.fileName} />}
+                              {file.url
+                                ? <a href={file.url} target="_blank" rel="noopener noreferrer">{file.fileName}</a>
+                                : <span>{file.fileName}</span>}
+                              <span className="muted"> · {formatSize(file.size)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </article>
                   ))}
                 </DiscussionThread>
@@ -100,7 +118,15 @@ export default async function DiscussionPage({ searchParams }: { searchParams: P
                     placeholder={t.discussionPlaceholder}
                     send={t.discussionSend}
                     pendingLabel={t.saving}
-                    action={postDiscussionMessage}
+                    attach={t.discussionAttach}
+                    hint={t.discussionFileHint}
+                    remove={t.discussionRemoveFile}
+                    errors={{
+                      empty: t.discussionErrorEmpty,
+                      size: t.discussionErrorSize,
+                      files: t.discussionErrorFiles,
+                      upload: t.discussionErrorUpload,
+                    }}
                   />
                 ) : <p className="muted">{t.discussionArchivedHint}</p>}
               </>

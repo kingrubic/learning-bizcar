@@ -5,6 +5,9 @@ export function discussionNotice(t: Copy, code?: string) {
   const map: Record<string, string> = {
     empty: t.discussionErrorEmpty,
     long: t.discussionErrorLong,
+    size: t.discussionErrorSize,
+    files: t.discussionErrorFiles,
+    upload: t.discussionErrorUpload,
     forbidden: t.discussionForbidden,
     missing: t.discussionForbidden,
     name: t.discussionErrorName,
