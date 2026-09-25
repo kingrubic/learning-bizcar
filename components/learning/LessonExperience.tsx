@@ -7,6 +7,7 @@ import { phasesFor, type LessonMeta, type PhaseId } from "@/lib/course";
 import { LessonStage, type SaveState } from "./LessonStage";
 import { BrandMark } from "@/components/brand/BrandMark";
 import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
+import { NotificationBell } from "@/components/brand/NotificationBell";
 import { messages, type Locale } from "@/lib/i18n";
 
 type LessonLink = { number: number; code: string; title: string; framework: string; status: string; unlocked: boolean };
@@ -124,6 +125,16 @@ export function LessonExperience({
             <span className="save-pill">{labelStatus(status, locale)}</span>
             <button type="button" className="btn" disabled={busy !== ""} onClick={() => post("/api/learn/complete")}>{busy ? t.writing : t.complete}</button>
             {reviewEnabled && <button type="button" className="btn dark" disabled={busy !== ""} onClick={() => post("/api/learn/submit")}>{t.submit}</button>}
+            <NotificationBell
+              locale={locale}
+              labels={{
+                label: t.notificationsLabel,
+                empty: t.notificationsEmpty,
+                posted: t.notificationPosted,
+                files: t.notificationFiles,
+                classChannel: t.discussionClass,
+              }}
+            />
             <LocaleSwitch locale={locale} />
             <button type="button" className="btn" onClick={() => window.print()}>{t.print}</button>
           </div>

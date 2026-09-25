@@ -3,6 +3,8 @@ export type ChannelKind = "class" | "group";
 export const DISCUSSION_BODY_MAX = 2000;
 export const DISCUSSION_NAME_MAX = 80;
 export const DISCUSSION_HISTORY_MAX = 200;
+export const DISCUSSION_FILE_MAX = 4;
+export const DISCUSSION_FILE_BYTES = 20 * 1024 * 1024;
 
 export function channelAccess(input: {
   staff: boolean;

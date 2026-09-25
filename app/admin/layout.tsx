@@ -6,6 +6,8 @@ import { menusFor } from "@/lib/permissions";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
+import { NotificationBell } from "@/components/brand/NotificationBell";
+import { api, q } from "@/lib/convex";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession();
@@ -24,6 +26,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
         <nav className="row-actions" aria-label={t.navAdmin}>
           {links.map((item) => <Link key={item.key} className="btn" href={item.href}>{t.menu[item.key as keyof typeof t.menu]}</Link>)}
+          <NotificationBell
+            initial={await q((convex, secret) => convex.query(api.notifications.feed, { secret, userId: user.id }))}
+            locale={locale}
+            labels={{
+              label: t.notificationsLabel,
+              empty: t.notificationsEmpty,
+              posted: t.notificationPosted,
+              files: t.notificationFiles,
+              classChannel: t.discussionClass,
+            }}
+          />
           <LocaleSwitch locale={locale} />
           <Link className="btn dark" href="/learn/dashboard">{t.backToClass}</Link>
         </nav>

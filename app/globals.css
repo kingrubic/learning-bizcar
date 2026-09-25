@@ -96,6 +96,33 @@ p, li, .lede, .muted { line-height: 1.65; letter-spacing: 0.004em; }
   background: #143420; color: #f6f3ea;
   position: sticky; top: 0; z-index: 5;
 }
+.bell { position: relative; }
+.bell-button {
+  position: relative; width: 40px; height: 36px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.22); background: transparent; color: #f6f3ea;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bell-button:hover { background: rgba(255,255,255,.1); }
+.bell-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 99px; background: var(--gold); color: #1a1408;
+  font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.bell-panel {
+  position: fixed; z-index: 40; width: min(360px, calc(100vw - 24px));
+  background: #fff; color: var(--ink); border: 1px solid var(--line); border-radius: 8px;
+  box-shadow: var(--shadow); padding: 12px 14px 8px; max-height: min(70vh, 440px); overflow: auto; text-align: left;
+}
+.bell-title { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-deep); }
+.bell-panel ul { list-style: none; margin: 0; padding: 0; }
+.bell-panel li { border-top: 1px solid rgba(20, 52, 32, 0.08); }
+.bell-panel a { display: grid; gap: 2px; padding: 10px 0; text-decoration: none; color: inherit; }
+.bell-panel a span, .bell-panel time { font-size: 13px; }
+.discussion-files, .discussion-picks { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.discussion-files img { display: block; max-width: min(100%, 360px); max-height: 240px; border-radius: 6px; object-fit: contain; background: #fff; }
+.discussion-files a { font-weight: 650; }
+.discussion-picks li { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.discussion-error { color: var(--red); margin: 8px 0; }
 .lang-switch { display: inline-flex; gap: 4px; align-items: center; }
 .lang-switch button {
   display: inline-flex; align-items: center; gap: 6px;
