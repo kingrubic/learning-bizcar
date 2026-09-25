@@ -74,7 +74,7 @@ export default defineSchema({
     courseId: v.number(),
     memberRole: v.union(v.literal("learner"), v.literal("coach")),
     createdAt: v.string(),
-  }).index("by_legacy", ["legacyId"]).index("by_user_course", ["userId", "courseId"]).index("by_user", ["userId"]),
+  }).index("by_legacy", ["legacyId"]).index("by_user_course", ["userId", "courseId"]).index("by_user", ["userId"]).index("by_cohort", ["cohortId"]),
   lessonAnswers: defineTable({
     legacyId: v.number(),
     userId: v.number(),
@@ -167,4 +167,25 @@ export default defineSchema({
     published: v.number(),
     updatedAt: v.string(),
   }).index("by_number", ["number"]),
+  discussionChannels: defineTable({
+    legacyId: v.number(),
+    cohortId: v.number(),
+    kind: v.union(v.literal("class"), v.literal("group")),
+    name: v.string(),
+    archived: v.number(),
+    createdBy: v.number(),
+    createdAt: v.string(),
+  }).index("by_legacy", ["legacyId"]).index("by_cohort", ["cohortId"]),
+  discussionMembers: defineTable({
+    channelId: v.number(),
+    userId: v.number(),
+    createdAt: v.string(),
+  }).index("by_channel", ["channelId"]).index("by_channel_user", ["channelId", "userId"]),
+  discussionMessages: defineTable({
+    legacyId: v.number(),
+    channelId: v.number(),
+    authorId: v.number(),
+    body: v.string(),
+    createdAt: v.string(),
+  }).index("by_channel", ["channelId"]),
 });

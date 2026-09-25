@@ -1,14 +1,25 @@
-import { mutation } from "./_generated/server";
+import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE } from "./catalog";
 import { gate, nextId, now } from "./helpers";
+
+async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
+  const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", "Học viên")).unique();
+  if (!group) return;
+  const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
+  if (links.some((row) => row.menuKey === "discussion")) return;
+  await ctx.db.insert("permissionGroupMenus", { groupId: group.legacyId, menuKey: "discussion" });
+}
 
 export const ensureCatalog = mutation({
   args: { secret: v.string() },
   handler: async (ctx, args) => {
     gate(args.secret);
     const existing = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", COURSE.slug)).unique();
-    if (existing) return { ok: true, seeded: false };
+    if (existing) {
+      await ensureLearnerDiscussionMenu(ctx);
+      return { ok: true, seeded: false };
+    }
 
     const createdAt = now();
     const orgId = await nextId(ctx, "organizations");
