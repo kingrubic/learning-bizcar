@@ -37,6 +37,37 @@ export async function createLearner(_prev: CreateLearnerState, formData: FormDat
   return { username, temporaryPassword: temp };
 }
 
+function adminReturnPath(value: string) {
+  if (value === "/admin/learning/cohorts") return value;
+  return "/admin/learning";
+}
+
+function enrollRedirect(next: string, cohortId: number, enroll: string): never {
+  const params = new URLSearchParams();
+  if (Number.isInteger(cohortId) && cohortId > 0) params.set("cohort", String(cohortId));
+  params.set("enroll", enroll);
+  redirect(`${next}?${params.toString()}`);
+}
+
+export async function enrollSelf(formData: FormData) {
+  const user = await actor(true);
+  const cohortId = Number(formData.get("cohortId"));
+  const next = adminReturnPath(String(formData.get("next") || ""));
+  if (!Number.isInteger(cohortId) || cohortId <= 0) enrollRedirect(next, cohortId, "invalid");
+  const result = await q((convex, secret) => convex.mutation(api.writes.enrollSelf, {
+    secret,
+    actorId: user.id,
+    cohortId,
+  }));
+  revalidatePath("/admin/learning");
+  revalidatePath("/admin/learning/cohorts");
+  revalidatePath("/admin/learning/learners");
+  revalidatePath("/learn/dashboard");
+  revalidatePath("/learn/profile");
+  if ("error" in result) enrollRedirect(next, cohortId, "error");
+  enrollRedirect(next, cohortId, result.status);
+}
+
 export async function setAccountActive(userId: number, active: boolean) {
   const user = await actor(true);
   await q((convex, secret) => convex.mutation(api.writes.setAccountActive, { secret, actorId: user.id, userId, active }));

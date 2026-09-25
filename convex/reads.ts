@@ -144,12 +144,14 @@ export const adminHome = query({
   args: { ...secret, cohortId: v.union(v.number(), v.null()), status: v.string() },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const users = (await ctx.db.query("users").collect()).filter((row) => row.role === "user");
+    const users = await ctx.db.query("users").collect();
     const orgs = await ctx.db.query("organizations").collect();
     const enrollments = (await ctx.db.query("enrollments").collect()).filter((row) => row.memberRole === "learner");
+    const learnerIds = new Set(enrollments.map((row) => row.userId));
     const cohorts = await ctx.db.query("cohorts").collect();
     const answers = await ctx.db.query("lessonAnswers").collect();
-    const rows = users.flatMap((user) => {
+    const roster = users.filter((row) => row.role === "user" || learnerIds.has(row.legacyId));
+    const rows = roster.flatMap((user) => {
       const org = orgs.find((item) => item.legacyId === user.organizationId);
       const enrollment = enrollments.find((item) => item.userId === user.legacyId);
       if (args.cohortId && enrollment?.cohortId !== args.cohortId) return [];
@@ -164,6 +166,7 @@ export const adminHome = query({
         display_name: user.displayName,
         username: user.username,
         active: user.active,
+        role: user.role,
         org: org?.name ?? "",
         cohort: cohort?.name ?? "",
         touched: matched.length,

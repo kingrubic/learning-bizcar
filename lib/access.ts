@@ -41,6 +41,14 @@ export async function enrollmentFor(userId: number) {
   return (await loadState(userId)).enrollment ?? undefined;
 }
 
+export async function canWriteLessons(user: SessionUser | null) {
+  if (!user) return false;
+  if (user.role === "user") return true;
+  if (user.role !== "admin" && user.role !== "mod") return false;
+  const enrollment = await enrollmentFor(user.id);
+  return enrollment?.member_role === "learner";
+}
+
 export function canCoachSee(actor: SessionUser, learnerId: number) {
   if (actor.role === "admin" || actor.role === "mod") return true;
   if (actor.id === learnerId) return true;

@@ -1,19 +1,39 @@
+import Link from "next/link";
 import { api, q } from "@/lib/convex";
 import { createCohort, setLessonUnlock, setUnlockMode } from "@/lib/admin-actions";
+import { getSession } from "@/lib/auth";
+import { enrollmentFor } from "@/lib/access";
+import { getLocale } from "@/lib/locale";
+import { messages } from "@/lib/i18n";
+import { SelfEnroll } from "@/components/admin/SelfEnroll";
 
 export const dynamic = "force-dynamic";
 
-export default async function CohortsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const error = (await searchParams).error;
+export default async function CohortsPage({ searchParams }: { searchParams: Promise<{ error?: string; enroll?: string }> }) {
+  const params = await searchParams;
+  const error = params.error;
+  const t = messages(await getLocale());
   const data = await q((convex, secret) => convex.query(api.reads.cohortsView, { secret }));
   const cohorts = data.cohorts;
   const lessons = data.lessons;
   const courses = data.courses;
+  const user = await getSession();
+  const enrollment = user?.role === "admin" ? await enrollmentFor(user.id) : undefined;
+  const enrollNote = params.enroll === "enrolled" ? t.enrolledOk : params.enroll === "error" ? t.enrollFailed : params.enroll === "invalid" ? t.enrollInvalid : null;
   return (
     <main>
       <h1 className="serif">Lớp học</h1>
       <p className="muted">Lớp mới dùng chung bài của khoá đã chọn. Bài làm của học viên lớp cũ không được chép sang.</p>
       {error && <p className="notice"><strong>{error}</strong></p>}
+      {enrollNote && <p className="notice"><strong>{enrollNote}</strong></p>}
+      {user?.role === "admin" && enrollment?.member_role === "learner" && (
+        <p className="notice">
+          <strong>{t.alreadyInCohort}</strong>
+          <span>{enrollment.cohort_name}</span>
+          <Link className="btn gold" href="/learn/dashboard">{t.openLearner}</Link>
+        </p>
+      )}
+      {user?.role === "admin" && !enrollment && <p className="muted">{t.joinCohortHint}</p>}
       <form action={createCohort} className="card" style={{ marginTop: 12 }}>
         <h2>Tạo lớp mới</h2>
         <div className="field"><label htmlFor="name">Tên lớp</label><input id="name" name="name" required placeholder="BMDO K04 · Cohort 01" /></div>
@@ -61,6 +81,15 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
               <input name="unlockAt" type="datetime-local" aria-label="Thời điểm mở" />
               <button className="btn" type="submit">Đặt lịch mở</button>
             </form>
+            {user?.role === "admin" && (
+              <SelfEnroll
+                cohortId={cohort.id}
+                cohortName={cohort.name}
+                enrollment={enrollment ?? null}
+                nextPath="/admin/learning/cohorts"
+                variant="inline"
+              />
+            )}
           </section>
         );
       })}
