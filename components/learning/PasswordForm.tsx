@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { messages, type Locale } from "@/lib/i18n";
 
 export function PasswordForm({ forced, locale = "vi" }: { forced?: boolean; locale?: Locale }) {
   const t = messages(locale);
-  const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -20,11 +18,11 @@ export function PasswordForm({ forced, locale = "vi" }: { forced?: boolean; loca
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ current: form.get("current"), next: form.get("next"), confirm: form.get("confirm") }),
     });
-    const payload = await response.json() as { error?: string };
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
     setPending(false);
-    if (!response.ok) { setError(payload.error || t.passwordFail); return; }
-    router.push("/learn/dashboard");
-    router.refresh();
+    if (!response.ok || !payload) { setError(payload?.error || t.passwordFail); return; }
+    // Full load. router.push replays a cached redirect back to this page.
+    window.location.replace("/learn/dashboard");
   }
 
   return (
