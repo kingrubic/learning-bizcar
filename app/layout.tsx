@@ -4,6 +4,9 @@ import { AppLoader } from "@/components/brand/AppLoader";
 import { getLocale } from "@/lib/locale";
 import "./globals.css";
 
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
 const montserrat = localFont({
   src: [
     { path: "../fonts/Montserrat-Medium.ttf", weight: "500", style: "normal" },

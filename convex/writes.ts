@@ -1,7 +1,7 @@
-import { mutation } from "./_generated/server";
+import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ensureClassChannel } from "./discussion";
-import { gate, nextId, now } from "./helpers";
+import { gate, nextId, now, passwordFlag } from "./helpers";
 
 const secret = { secret: v.string() };
 
@@ -74,7 +74,10 @@ export const changePassword = mutation({
     const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
     if (!user) throw new Error("NOT_FOUND");
     await ctx.db.patch(user._id, { passwordHash: args.passwordHash, mustChangePassword: 0, updatedAt: now() });
+    const saved = await ctx.db.get(user._id);
+    if (!saved || passwordFlag(saved.mustChangePassword) !== 0) throw new Error("FLAG_NOT_CLEARED");
     await log(ctx, args.userId, "password_change", "user", String(args.userId));
+    return { mustChangePassword: 0 as const, role: saved.role };
   },
 });
 
@@ -89,25 +92,31 @@ export const createLearner = mutation({
   },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const usernameLower = args.username.trim().toLowerCase();
-    const taken = await ctx.db.query("users").withIndex("by_username", (q) => q.eq("usernameLower", usernameLower)).unique();
-    if (taken) return { error: "Tên đăng nhập đã tồn tại." as const };
-    const cohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", args.cohortId)).unique();
-    if (!cohort) return { error: "Cohort không tồn tại." as const };
+    const username = args.username.trim();
+    const displayName = args.displayName.trim();
+    const usernameLower = username.toLowerCase();
+    if (!username || !displayName || !Number.isInteger(args.cohortId) || args.cohortId <= 0) {
+      return { error: "Thiếu thông tin học viên." as const };
+    }
+    // .unique() throws when duplicates exist and the admin only saw a generic server error.
+    const taken = await ctx.db.query("users").withIndex("by_username", (q) => q.eq("usernameLower", usernameLower)).take(1);
+    if (taken.length > 0) return { error: "Tên đăng nhập đã tồn tại." as const };
+    const cohort = (await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", args.cohortId)).take(1))[0];
+    if (!cohort || typeof cohort.courseId !== "number") return { error: "Cohort không tồn tại." as const };
     const stamp = now();
     const userId = await nextId(ctx, "users");
-    const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", "Học viên")).unique();
+    const group = (await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", "Học viên")).take(1))[0];
     const department = (await ctx.db.query("departments").collect()).find((row) => row.name === "Học viên BMDO");
     await ctx.db.insert("users", {
       legacyId: userId,
-      username: args.username.trim(),
+      username,
       usernameLower,
       passwordHash: args.passwordHash,
-      displayName: args.displayName.trim(),
+      displayName,
       role: "user",
       departmentId: department?.legacyId ?? null,
       permissionGroupId: group?.legacyId ?? null,
-      organizationId: cohort.organizationId,
+      organizationId: typeof cohort.organizationId === "number" ? cohort.organizationId : null,
       active: 1,
       mustChangePassword: 1,
       createdAt: stamp,
@@ -117,12 +126,13 @@ export const createLearner = mutation({
     await ctx.db.insert("enrollments", {
       legacyId: enrollmentId,
       userId,
-      cohortId: args.cohortId,
+      cohortId: cohort.legacyId,
       courseId: cohort.courseId,
       memberRole: "learner",
       createdAt: stamp,
     });
-    await log(ctx, args.actorId, "enrollment", "user", String(userId), args.username.trim());
+    await ensureClassChannel(ctx, cohort.legacyId, args.actorId);
+    await log(ctx, args.actorId, "enrollment", "user", String(userId), username);
     return { id: userId };
   },
 });
@@ -185,6 +195,72 @@ export const resetPassword = mutation({
     const sessions = await ctx.db.query("sessions").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect();
     for (const session of sessions) await ctx.db.delete(session._id);
     await log(ctx, args.actorId, "password_reset", "user", String(args.userId));
+  },
+});
+
+// ponytail: membership and submissions have no by-user index. A class-sized scan is enough;
+// add those indexes if a wipe hits Convex's transaction limit, then rerun (admins are kept).
+async function purgeUserOwned(ctx: MutationCtx, userId: number, usernameLower: string) {
+  const sessions = await ctx.db.query("sessions").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+  for (const row of sessions) await ctx.db.delete(row._id);
+  const attempts = await ctx.db.query("loginAttempts").withIndex("by_username", (q) => q.eq("usernameLower", usernameLower)).collect();
+  for (const row of attempts) await ctx.db.delete(row._id);
+  const enrollments = await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+  for (const row of enrollments) await ctx.db.delete(row._id);
+  const answers = await ctx.db.query("lessonAnswers").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+  for (const row of answers) await ctx.db.delete(row._id);
+  const submissions = (await ctx.db.query("lessonSubmissions").collect()).filter((row) => row.userId === userId);
+  for (const row of submissions) {
+    const notes = await ctx.db.query("coachFeedback").withIndex("by_submission", (q) => q.eq("submissionId", row.legacyId)).collect();
+    for (const note of notes) await ctx.db.delete(note._id);
+    await ctx.db.delete(row._id);
+  }
+  const tasks = await ctx.db.query("tasks").withIndex("by_assignee", (q) => q.eq("assigneeId", userId)).collect();
+  for (const row of tasks) await ctx.db.delete(row._id);
+  const notifications = await ctx.db.query("notifications").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+  for (const row of notifications) await ctx.db.delete(row._id);
+  const members = (await ctx.db.query("discussionMembers").collect()).filter((row) => row.userId === userId);
+  for (const row of members) await ctx.db.delete(row._id);
+}
+
+export const deleteUserAccount = mutation({
+  args: { ...secret, actorId: v.number(), userId: v.number() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const actor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.actorId)).unique();
+    if (!actor || actor.role !== "admin" || actor.active !== 1) return { error: "Không có quyền." as const };
+    const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
+    if (!user) return { error: "Không tìm thấy tài khoản." as const };
+    if (user.role === "admin") return { error: "Không xóa tài khoản quản trị." as const };
+    if (user.legacyId === actor.legacyId) return { error: "Không xóa chính mình." as const };
+    await purgeUserOwned(ctx, user.legacyId, user.usernameLower);
+    await ctx.db.delete(user._id);
+    await log(ctx, actor.legacyId, "user_delete", "user", String(user.legacyId), user.username);
+    return { ok: true as const };
+  },
+});
+
+/**
+ * Delete every non-admin and their enrollments, progress, sessions, and discussion
+ * membership. Courses, lessons, cohorts, and channels stay. Refuses when no admin remains.
+ *
+ *   npx convex run writes:wipeNonAdmins '{"secret":"<APP_SECRET>"}'
+ */
+export const wipeNonAdmins = mutation({
+  args: secret,
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const users = await ctx.db.query("users").collect();
+    const admins = users.filter((user) => user.role === "admin");
+    if (admins.length === 0) return { error: "Không còn admin, dừng wipe." as const };
+    let deleted = 0;
+    for (const user of users) {
+      if (user.role === "admin") continue;
+      await purgeUserOwned(ctx, user.legacyId, user.usernameLower);
+      await ctx.db.delete(user._id);
+      deleted += 1;
+    }
+    return { deleted, keptAdmins: admins.length };
   },
 });
 

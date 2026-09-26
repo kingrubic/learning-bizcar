@@ -28,6 +28,11 @@ export async function lessonByLegacy(ctx: QueryCtx | MutationCtx, id: number) {
   return ctx.db.query("lessons").withIndex("by_legacy", (q) => q.eq("legacyId", id)).unique();
 }
 
+/** Stored flag is the number 1. Boolean true / "1" / missing must not keep the gate shut. */
+export function passwordFlag(value: unknown): 0 | 1 {
+  return value === 1 ? 1 : 0;
+}
+
 export function publicUser(user: {
   legacyId: number;
   username: string;
@@ -48,6 +53,6 @@ export function publicUser(user: {
     departmentId: user.departmentId,
     permissionGroupId: user.permissionGroupId,
     active: user.active,
-    mustChangePassword: user.mustChangePassword,
+    mustChangePassword: passwordFlag(user.mustChangePassword),
   };
 }

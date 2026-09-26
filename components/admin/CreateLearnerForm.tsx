@@ -17,7 +17,8 @@ export function CreateLearnerForm({ cohorts }: { cohorts: { id: number; name: st
           {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
         </select>
       </div>
-      <button className="btn dark" type="submit" disabled={pending}>{pending ? "Đang tạo…" : "Tạo và ghi danh"}</button>
+      {cohorts.length === 0 && <p role="alert">Chưa có cohort. Tạo lớp trước khi cấp tài khoản.</p>}
+      <button className="btn dark" type="submit" disabled={pending || cohorts.length === 0}>{pending ? "Đang tạo…" : "Tạo và ghi danh"}</button>
       {state.error && <p role="alert" style={{ color: "var(--red)" }}>{state.error}</p>}
       {state.temporaryPassword && <p role="status">Mật khẩu tạm cho @{state.username}: <strong>{state.temporaryPassword}</strong>. Học viên phải đổi ở lần đăng nhập đầu.</p>}
     </form>
