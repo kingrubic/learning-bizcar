@@ -1,6 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
-import { gate, publicUser } from "./helpers";
+import { gate, passwordFlag, publicUser } from "./helpers";
 
 const secret = { secret: v.string() };
 
@@ -38,7 +38,7 @@ export const userFlags = query({
     gate(args.secret);
     const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.id)).unique();
     if (!user) return null;
-    return { must_change_password: user.mustChangePassword, role: user.role, password_hash: user.passwordHash };
+    return { must_change_password: passwordFlag(user.mustChangePassword), role: user.role, password_hash: user.passwordHash };
   },
 });
 
@@ -358,6 +358,7 @@ export const learnersView = query({
           display_name: row.displayName,
           username: row.username,
           active: row.active,
+          role: row.role,
           cohort: cohorts.find((item) => item.id === enrollment?.cohortId)?.name ?? null,
         };
       });

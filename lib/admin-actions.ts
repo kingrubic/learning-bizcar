@@ -17,24 +17,38 @@ async function actor(adminOnly = false) {
 
 export type CreateLearnerState = { temporaryPassword?: string; error?: string; username?: string };
 
+function actionError(error: unknown) {
+  if (!(error instanceof Error)) return "Không thực hiện được.";
+  const lines = error.message.split("\n").map((item) => item.trim()).filter(Boolean);
+  const useful = lines.find((line) => !line.startsWith("[CONVEX") && !line.startsWith("at ") && !line.startsWith("Called by"));
+  return (useful || lines[0] || "Không thực hiện được.").slice(0, 240);
+}
+
 export async function createLearner(_prev: CreateLearnerState, formData: FormData): Promise<CreateLearnerState> {
-  const user = await actor(true);
-  const username = String(formData.get("username") || "").trim();
-  const displayName = String(formData.get("displayName") || "").trim();
-  const cohortId = Number(formData.get("cohortId"));
-  if (!username || !displayName || !cohortId) return { error: "Thiếu thông tin học viên." };
-  const temp = temporaryPassword();
-  const created = await q((convex, secret) => convex.mutation(api.writes.createLearner, {
-    secret,
-    actorId: user.id,
-    username,
-    passwordHash: hashPassword(temp),
-    displayName,
-    cohortId,
-  }));
-  if ("error" in created) return { error: created.error };
-  revalidatePath("/admin/learning");
-  return { username, temporaryPassword: temp };
+  try {
+    const user = await actor(true);
+    const username = String(formData.get("username") || "").trim();
+    const displayName = String(formData.get("displayName") || "").trim();
+    const cohortId = Number(formData.get("cohortId"));
+    if (!username || !displayName || !Number.isInteger(cohortId) || cohortId <= 0) return { error: "Thiếu thông tin học viên." };
+    const temp = temporaryPassword();
+    const created = await q((convex, secret) => convex.mutation(api.writes.createLearner, {
+      secret,
+      actorId: user.id,
+      username,
+      passwordHash: hashPassword(temp),
+      displayName,
+      cohortId,
+    }));
+    if (!created) return { error: "Không tạo được học viên." };
+    if ("error" in created) return { error: created.error };
+    revalidatePath("/admin/learning/learners");
+    revalidatePath("/admin/learning");
+    revalidatePath("/admin/organization/users");
+    return { username, temporaryPassword: temp };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
 }
 
 function adminReturnPath(value: string) {
@@ -72,6 +86,27 @@ export async function setAccountActive(userId: number, active: boolean) {
   const user = await actor(true);
   await q((convex, secret) => convex.mutation(api.writes.setAccountActive, { secret, actorId: user.id, userId, active }));
   revalidatePath("/admin/learning/learners");
+}
+
+export async function deleteLearnerAccount(userId: number): Promise<{ ok: true } | { error: string }> {
+  try {
+    const user = await actor(true);
+    if (!Number.isInteger(userId) || userId <= 0) return { error: "Học viên không hợp lệ." };
+    if (user.id === userId) return { error: "Không xóa chính mình." };
+    const result = await q((convex, secret) => convex.mutation(api.writes.deleteUserAccount, {
+      secret,
+      actorId: user.id,
+      userId,
+    }));
+    if ("error" in result && result.error) return { error: result.error };
+    revalidatePath("/admin/learning/learners");
+    revalidatePath("/admin/learning");
+    revalidatePath("/admin/organization/users");
+    revalidatePath("/admin/learning/discussion");
+    return { ok: true };
+  } catch (error) {
+    return { error: actionError(error) };
+  }
 }
 
 export async function resetPassword(userId: number) {

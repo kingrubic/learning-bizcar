@@ -1,5 +1,5 @@
-/** Forced first-login / reset passwords store this as 1. A cleared account is 0. */
-export function requiresPasswordChange(flag: number | null | undefined) {
+/** Forced first-login / reset passwords store this as the number 1. Cleared is 0. */
+export function requiresPasswordChange(flag: number | boolean | string | null | undefined) {
   return flag === 1;
 }
 

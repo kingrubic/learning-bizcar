@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
 import { hashPassword, verifyPassword } from "@/lib/password";
+import { postLoginPath, requiresPasswordChange } from "@/lib/password-gate";
 
 export async function POST(request: Request) {
   const user = await getSession();
@@ -14,6 +15,10 @@ export async function POST(request: Request) {
   if (nextPassword.length < 8) return NextResponse.json({ error: "Mật khẩu mới cần ít nhất 8 ký tự." }, { status: 400 });
   const row = await q((convex, secret) => convex.query(api.reads.userFlags, { secret, id: user.id }));
   if (!row || !verifyPassword(body.current, row.password_hash)) return NextResponse.json({ error: "Mật khẩu hiện tại chưa đúng." }, { status: 400 });
-  await q((convex, secret) => convex.mutation(api.writes.changePassword, { secret, userId: user.id, passwordHash: hashPassword(nextPassword) }));
-  return NextResponse.json({ ok: true });
+  const changed = await q((convex, secret) => convex.mutation(api.writes.changePassword, { secret, userId: user.id, passwordHash: hashPassword(nextPassword) }));
+  const saved = await q((convex, secret) => convex.query(api.reads.userFlags, { secret, id: user.id }));
+  if (changed.mustChangePassword !== 0 || !saved || requiresPasswordChange(saved.must_change_password)) {
+    return NextResponse.json({ error: "Mật khẩu đã lưu nhưng hệ thống vẫn yêu cầu đổi. Thử lại." }, { status: 409 });
+  }
+  return NextResponse.json({ ok: true, next: postLoginPath(saved.role) });
 }

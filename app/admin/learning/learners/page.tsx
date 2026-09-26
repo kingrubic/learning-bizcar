@@ -27,7 +27,7 @@ export default async function LearnersPage() {
               <tr key={learner.id}>
                 <td>{learner.display_name}<div className="muted">@{learner.username}</div></td>
                 <td>{learner.cohort ?? "—"} · {learner.active ? "active" : "inactive"}</td>
-                <td><LearnerControls id={learner.id} active={Boolean(learner.active)} /></td>
+                <td><LearnerControls id={learner.id} active={Boolean(learner.active)} role={learner.role} /></td>
               </tr>
             ))}
           </tbody>

@@ -18,11 +18,12 @@ export function PasswordForm({ forced, locale = "vi" }: { forced?: boolean; loca
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ current: form.get("current"), next: form.get("next"), confirm: form.get("confirm") }),
     });
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    const payload = await response.json().catch(() => null) as { error?: string; next?: string } | null;
     setPending(false);
-    if (!response.ok || !payload) { setError(payload?.error || t.passwordFail); return; }
+    const next = payload?.next === "/admin/learning" || payload?.next === "/learn/dashboard" ? payload.next : "";
+    if (!response.ok || !next) { setError(payload?.error || t.passwordFail); return; }
     // Full load. router.push replays a cached redirect back to this page.
-    window.location.replace("/learn/dashboard");
+    window.location.replace(next);
   }
 
   return (
