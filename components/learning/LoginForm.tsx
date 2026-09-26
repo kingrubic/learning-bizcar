@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { messages, type Locale } from "@/lib/i18n";
 import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
 
 export function LoginForm({ locale, story, tagline }: { locale: Locale; story: string; tagline: string }) {
   const t = messages(locale);
-  const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -21,11 +19,10 @@ export function LoginForm({ locale, story, tagline }: { locale: Locale; story: s
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username: form.get("username"), password: form.get("password") }),
     });
-    const payload = await response.json() as { error?: string; next?: string };
+    const payload = await response.json().catch(() => null) as { error?: string; next?: string } | null;
     setPending(false);
-    if (!response.ok) { setError(payload.error || t.loginFail); return; }
-    router.push(payload.next || "/learn/dashboard");
-    router.refresh();
+    if (!response.ok || !payload?.next) { setError(payload?.error || t.loginFail); return; }
+    window.location.assign(payload.next);
   }
 
   return (

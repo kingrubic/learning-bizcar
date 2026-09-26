@@ -37,6 +37,7 @@
   "exclude": [
     "node_modules",
     "source",
-    "lib/discussion-access.check.ts"
+    "lib/discussion-access.check.ts",
+    "lib/password-gate.check.ts"
   ]
 }

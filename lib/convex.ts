@@ -4,7 +4,11 @@ import { api } from "../convex/_generated/api";
 function client() {
   const url = process.env.NEXT_PUBLIC_CONVEX_URL || process.env.CONVEX_URL;
   if (!url) throw new Error("Missing CONVEX_URL");
-  return new ConvexHttpClient(url);
+  return new ConvexHttpClient(url, {
+    // userFlags is the same query body on every login. Next's patched fetch can
+    // otherwise reuse mustChangePassword: 1 after the account has already cleared it.
+    fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+  });
 }
 
 export function appSecret() {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { clearSession, getSession, loginWithPassword, startSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
 import { logActivity } from "@/lib/db";
+import { loginDestination } from "@/lib/password-gate";
 
 function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
   await startSession(result.userId);
   const user = await q((convex, secret) => convex.query(api.reads.userFlags, { secret, id: result.userId }));
   if (!user) return NextResponse.json({ error: "Tài khoản không còn tồn tại." }, { status: 401 });
-  const next = user.must_change_password ? "/learn/password" : user.role === "user" ? "/learn/dashboard" : "/admin/learning";
+  const next = loginDestination(user.must_change_password, user.role);
   return NextResponse.json({ ok: true, next });
 }
 

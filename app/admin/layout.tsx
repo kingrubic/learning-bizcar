@@ -8,11 +8,12 @@ import { messages } from "@/lib/i18n";
 import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
 import { NotificationBell } from "@/components/brand/NotificationBell";
 import { api, q } from "@/lib/convex";
+import { requiresPasswordChange } from "@/lib/password-gate";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession();
   if (!user) redirect("/learn/login");
-  if (user.mustChangePassword) redirect("/learn/password");
+  if (requiresPasswordChange(user.mustChangePassword)) redirect("/learn/password");
   const locale = await getLocale();
   const t = messages(locale);
   const links = (await menusFor(user)).filter((item) => item.area === "admin");
