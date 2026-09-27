@@ -9,8 +9,6 @@
  */
 
 import type * as catalog from "../catalog.js";
-import type * as companyProfile from "../companyProfile.js";
-import type * as companyProfileAccess from "../companyProfileAccess.js";
 import type * as discussion from "../discussion.js";
 import type * as discussionAccess from "../discussionAccess.js";
 import type * as discussionSummary from "../discussionSummary.js";
@@ -28,8 +26,6 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   catalog: typeof catalog;
-  companyProfile: typeof companyProfile;
-  companyProfileAccess: typeof companyProfileAccess;
   discussion: typeof discussion;
   discussionAccess: typeof discussionAccess;
   discussionSummary: typeof discussionSummary;
