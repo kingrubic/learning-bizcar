@@ -63,7 +63,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       {user?.role === "admin" && !selected && (state?.enrollments.length ?? 0) === 0 && <p className="muted" style={{ marginTop: 12 }}>{t.pickCohortToJoin}</p>}
       <div className="table-wrap card" style={{ marginTop: 16, padding: 0 }}>
         <table>
-          <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Cohort</th><th>Hoàn thành</th><th>Hoạt động</th><th></th></tr></thead>
+          <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Cohort</th><th>Buổi xong</th><th>Hoạt động</th><th></th></tr></thead>
           <tbody>
             {rows.map((row) => (
               <tr key={`${row.id}-${row.cohort_id}`}>

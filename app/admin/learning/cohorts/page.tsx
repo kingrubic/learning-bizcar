@@ -27,7 +27,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
   return (
     <main>
       <h1 className="serif">Lớp học</h1>
-      <p className="muted">Mỗi lớp thuộc một khoá, một giảng viên và một mã lớp. Lớp chọn buổi từ danh mục khoá cùng lịch mở.</p>
+      <p className="muted">Mỗi lớp thuộc một khoá, một giảng viên và một mã lớp. Buổi học của lớp là tập con bài học của khoá, cùng lịch mở buổi.</p>
       <p className="row-actions"><Link className="btn dark" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link></p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       {enrollNote && <p className="notice"><strong>{enrollNote}</strong></p>}
@@ -56,14 +56,15 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
               }}
             />
             <div className="card" style={{ marginTop: 12 }}>
-              <p className="muted">{cohort.org} · Review {cohort.review_enabled ? "bật" : "tắt"} · {cohort.lesson_ids.length} buổi</p>
+              <p className="muted">{cohort.org} · Review {cohort.review_enabled ? "bật" : "tắt"} · {cohort.lesson_ids.length} buổi học</p>
+              <h3>Lịch mở buổi</h3>
               <form className="row-actions" action={async (formData) => {
                 "use server";
                 await setUnlockMode(Number(formData.get("cohortId")), String(formData.get("mode")));
               }}>
                 <input type="hidden" name="cohortId" value={cohort.id} />
-                <select name="mode" defaultValue={cohort.unlock_mode} aria-label="Chế độ mở bài">
-                  <option value="all_open">Mở tất cả</option>
+                <select name="mode" defaultValue={cohort.unlock_mode} aria-label="Chế độ mở buổi">
+                  <option value="all_open">Mở tất cả buổi</option>
                   <option value="sequential">Tuần tự</option>
                   <option value="scheduled">Theo lịch</option>
                 </select>
@@ -74,9 +75,9 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
                 await setLessonUnlock(Number(formData.get("cohortId")), Number(formData.get("lessonId")), String(formData.get("unlockAt") || ""));
               }}>
                 <input type="hidden" name="cohortId" value={cohort.id} />
-                <select name="lessonId" aria-label="Buổi học">{courseLessons.filter((lesson) => cohort.lesson_ids.includes(lesson.id)).map((lesson) => <option key={lesson.id} value={lesson.id}>{String(lesson.number).padStart(2, "0")} · {lesson.title}</option>)}</select>
-                <input name="unlockAt" type="datetime-local" aria-label="Thời điểm mở" />
-                <button className="btn" type="submit">Đặt lịch mở</button>
+                <select name="lessonId" aria-label="Buổi học">{courseLessons.filter((lesson) => cohort.lesson_ids.includes(lesson.id)).map((lesson) => <option key={lesson.id} value={lesson.id}>Bài {String(lesson.number).padStart(2, "0")} · {lesson.title}</option>)}</select>
+                <input name="unlockAt" type="datetime-local" aria-label="Thời điểm mở buổi" />
+                <button className="btn" type="submit">Đặt lịch mở buổi</button>
               </form>
               <h3>Học viên của lớp</h3>
               {members.length === 0 && <p className="muted">Chưa có học viên.</p>}
