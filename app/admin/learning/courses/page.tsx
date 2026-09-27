@@ -13,7 +13,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
   return (
     <main>
       <h1 className="serif">Khoá học</h1>
-      <p className="muted">Danh sách khoá. Bài học thuộc từng khoá — mở Chi tiết khoá học để tạo, sửa, sắp xếp hoặc lưu trữ. Lớp học chọn buổi học từ những bài đó.</p>
+      <p className="muted">Danh sách khoá. Bài học thuộc từng khoá — mở Chi tiết khoá học để tạo, sửa, sắp xếp hoặc lưu trữ. Lớp không sửa danh mục này; buổi của lớp chỉ trỏ tới các bài.</p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       <form action={saveCourse} className="card" style={{ marginTop: 12 }}>
         <h2>Tạo khoá</h2>
@@ -26,7 +26,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
       </form>
       <form action={cloneCourse} className="card" style={{ marginTop: 12 }}>
         <h2>Sao chép danh mục từ khoá có sẵn</h2>
-        <p className="muted">Khoá mới nhận toàn bộ bài học đang có của khoá nguồn. Bài làm học viên không đi theo. Sau đó tạo lớp và chọn buổi học từ các bài đó.</p>
+        <p className="muted">Khoá mới nhận toàn bộ bài học đang có của khoá nguồn. Bài làm học viên không đi theo. Sau đó tạo lớp và xếp những bài đó vào từng buổi.</p>
         <div className="field">
           <label htmlFor="sourceCourseId">Khoá nguồn</label>
           <select id="sourceCourseId" name="sourceCourseId" required defaultValue={courses[0]?.id}>

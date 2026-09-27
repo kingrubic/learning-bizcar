@@ -68,14 +68,28 @@ export default defineSchema({
     createdAt: v.string(),
     code: v.optional(v.string()),
     instructorId: v.optional(v.union(v.number(), v.null())),
-    // 1 = cohortLessons is the class subset, including an explicit empty list.
+    // Legacy: 1 = cohortLessons was the class subset. Reads ignore it once sessionsReady is set.
     lessonsScoped: v.optional(v.number()),
+    // 1 = classSessions is the source of truth, including an explicit empty list.
+    sessionsReady: v.optional(v.number()),
   }).index("by_legacy", ["legacyId"]).index("by_code", ["code"]).index("by_instructor", ["instructorId"]),
   cohortLessons: defineTable({
     cohortId: v.number(),
     lessonId: v.number(),
     sortOrder: v.number(),
   }).index("by_cohort", ["cohortId"]).index("by_cohort_lesson", ["cohortId", "lessonId"]),
+  classSessions: defineTable({
+    legacyId: v.number(),
+    cohortId: v.number(),
+    title: v.string(),
+    sessionDate: v.union(v.string(), v.null()),
+    sortOrder: v.number(),
+  }).index("by_legacy", ["legacyId"]).index("by_cohort", ["cohortId"]),
+  classSessionLessons: defineTable({
+    sessionId: v.number(),
+    lessonId: v.number(),
+    sortOrder: v.number(),
+  }).index("by_session", ["sessionId"]).index("by_session_lesson", ["sessionId", "lessonId"]),
   lessonUnlocks: defineTable({
     cohortId: v.number(),
     lessonId: v.number(),

@@ -8,7 +8,7 @@ export default async function ProgressPage() {
   return (
     <main>
       <h1 className="serif">Tiến độ bài học</h1>
-      <p className="muted">Mỗi dòng là một bài học học viên đã làm trong buổi của lớp, không phải toàn bộ danh mục khoá.</p>
+      <p className="muted">Mỗi dòng là một bài học học viên đã làm. Chỉ tính bài đang nằm trong ít nhất một buổi của lớp. Một bài ở nhiều buổi chỉ tính một lần. Bài của khoá chưa xếp buổi không hiện. Bài làm đã lưu vẫn giữ khi đổi buổi.</p>
       <div className="table-wrap card" style={{ padding: 0 }}>
         <table>
           <thead><tr><th>Học viên</th><th>Bài học</th><th>Pha</th><th>Tiến độ</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>

@@ -118,8 +118,18 @@ export async function resetPassword(userId: number) {
   return temp;
 }
 
-function lessonIdsFrom(formData: FormData) {
-  return formData.getAll("lessonIds").map((value) => Number(value)).filter((id) => Number.isInteger(id) && id > 0);
+function sessionsFrom(formData: FormData) {
+  try {
+    const value = JSON.parse(String(formData.get("sessions") || ""));
+    if (!Array.isArray(value)) return null;
+    return value.map((row) => ({
+      title: String(row?.title ?? ""),
+      sessionDate: String(row?.date ?? "").trim() || null,
+      lessonIds: Array.isArray(row?.lessonIds) ? row.lessonIds.map(Number).filter((id: number) => Number.isInteger(id) && id > 0) : [],
+    }));
+  } catch {
+    return null;
+  }
 }
 
 export async function saveCohort(formData: FormData) {
@@ -130,9 +140,11 @@ export async function saveCohort(formData: FormData) {
   const instructorId = Number(formData.get("instructorId"));
   const cohortRaw = Number(formData.get("cohortId") || 0);
   const cohortId = Number.isInteger(cohortRaw) && cohortRaw > 0 ? cohortRaw : undefined;
+  const sessions = sessionsFrom(formData);
   if (!name || !courseId) redirect("/admin/learning/cohorts?error=Thiếu tên lớp hoặc khoá.");
   if (!Number.isInteger(instructorId) || instructorId <= 0) redirect("/admin/learning/cohorts?error=Chọn một giảng viên.");
   if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") redirect("/admin/learning/cohorts?error=Cách mở buổi không hợp lệ.");
+  if (!sessions) redirect("/admin/learning/cohorts?error=Danh sách buổi không hợp lệ.");
   const created = await q((convex, secret) => convex.mutation(api.writes.saveCohort, {
     secret,
     actorId: user.id,
@@ -142,7 +154,7 @@ export async function saveCohort(formData: FormData) {
     mode,
     code: String(formData.get("code") || ""),
     instructorId,
-    lessonIds: lessonIdsFrom(formData),
+    sessions,
     instructorCode: String(formData.get("instructorCode") || ""),
   }));
   if ("error" in created && created.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(created.error)}`);
@@ -303,25 +315,6 @@ export async function cloneCourse(formData: FormData) {
   const id = "id" in created ? created.id : 0;
   refreshCourse(id);
   courseReturn(id);
-}
-
-export async function setUnlockMode(cohortId: number, mode: string) {
-  const user = await actor(true);
-  if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") throw new Error("Chế độ không hợp lệ.");
-  await q((convex, secret) => convex.mutation(api.writes.setUnlockMode, { secret, actorId: user.id, cohortId, mode }));
-  revalidatePath("/admin/learning/cohorts");
-}
-
-export async function setLessonUnlock(cohortId: number, lessonId: number, unlockAt: string) {
-  const user = await actor(true);
-  await q((convex, secret) => convex.mutation(api.writes.setLessonUnlock, {
-    secret,
-    actorId: user.id,
-    cohortId,
-    lessonId,
-    unlockAt: unlockAt || null,
-  }));
-  revalidatePath("/admin/learning/cohorts");
 }
 
 export async function saveDepartment(formData: FormData) {

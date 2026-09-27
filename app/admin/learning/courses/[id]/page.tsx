@@ -28,7 +28,7 @@ export default async function CourseDetailPage({
       <p className="row-actions"><Link className="btn" href="/admin/learning/courses">Danh sách khoá</Link></p>
       <div className="eyebrow">{course.code} · {suggested}</div>
       <h1 className="serif">{course.title}</h1>
-      <p className="muted">Giới thiệu của khoá và danh sách bài học. Lớp học chọn buổi học từ các bài này, không tạo nội dung riêng.</p>
+      <p className="muted">Giới thiệu của khoá và danh mục bài học. Lớp không thêm, xoá hay sửa danh mục này. Mỗi buổi của lớp trỏ tới nhiều bài ở đây.</p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       <form action={saveCourse} className="card" style={{ marginTop: 12 }}>
         <h2>Giới thiệu khoá</h2>
