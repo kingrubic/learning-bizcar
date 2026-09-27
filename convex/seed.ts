@@ -3,14 +3,19 @@ import { v } from "convex/values";
 import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
 import { gate, nextId, now } from "./helpers";
 
-async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
+async function ensureLearnerMenu(ctx: MutationCtx, menuKey: string) {
   for (const name of ["Học viên", "Theo dõi lớp"]) {
     const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", name)).unique();
     if (!group) continue;
     const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
-    if (links.some((row) => row.menuKey === "discussion")) continue;
-    await ctx.db.insert("permissionGroupMenus", { groupId: group.legacyId, menuKey: "discussion" });
+    if (links.some((row) => row.menuKey === menuKey)) continue;
+    await ctx.db.insert("permissionGroupMenus", { groupId: group.legacyId, menuKey });
   }
+}
+
+async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
+  await ensureLearnerMenu(ctx, "discussion");
+  await ensureLearnerMenu(ctx, "company");
 }
 
 export const ensureCatalog = mutation({

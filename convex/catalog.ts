@@ -70,6 +70,6 @@ export const SESSION27_MAP_LEDE: Record<"vi" | "en", string> = {
 };
 
 export const PERMISSION_PRESETS = [
-  { name: "Học viên", description: "Thấy các menu học tập và nhiệm vụ của chính mình.", menus: ["dashboard", "map", "workbook", "portfolio", "tasks", "discussion"] },
-  { name: "Theo dõi lớp", description: "Thấy tiến độ và bài nộp, không quản trị người dùng.", menus: ["dashboard", "map", "admin-progress", "admin-submissions", "tasks", "discussion"] },
+  { name: "Học viên", description: "Thấy các menu học tập và nhiệm vụ của chính mình.", menus: ["dashboard", "map", "workbook", "portfolio", "company", "tasks", "discussion"] },
+  { name: "Theo dõi lớp", description: "Thấy tiến độ và bài nộp, không quản trị người dùng.", menus: ["dashboard", "map", "admin-progress", "admin-submissions", "tasks", "discussion", "company"] },
 ];
