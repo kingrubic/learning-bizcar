@@ -69,7 +69,49 @@ export const SESSION27_MAP_LEDE: Record<"vi" | "en", string> = {
   en: "Twenty-seven design sessions for MyBizCar, from the 12 management domains to the 3E3S leadership matrix.",
 };
 
+/** Exact permission-group name. Reuse this row; do not create a second group. */
+export const PRACTICAL_INSTRUCTOR_GROUP = "giảng viên dẫn giảng thực hành";
+
+/**
+ * Same menus as "Theo dõi lớp": own learning, progress, submissions, tasks, discussion.
+ * No admin-users / admin-departments / admin-groups / admin-cms (those are admin-only).
+ * No admin-discussion: the desk page only serves admin and mod.
+ */
+export const PRACTICAL_INSTRUCTOR_MENUS = [
+  "dashboard",
+  "map",
+  "admin-progress",
+  "admin-submissions",
+  "tasks",
+  "discussion",
+] as const;
+
+export const PRACTICAL_INSTRUCTOR_DESCRIPTION =
+  "Dẫn giảng thực hành một lớp. Thấy tiến độ và bài nộp, không quản trị người dùng.";
+
 export const PERMISSION_PRESETS = [
   { name: "Học viên", description: "Thấy các menu học tập và nhiệm vụ của chính mình.", menus: ["dashboard", "map", "workbook", "portfolio", "tasks", "discussion"] },
   { name: "Theo dõi lớp", description: "Thấy tiến độ và bài nộp, không quản trị người dùng.", menus: ["dashboard", "map", "admin-progress", "admin-submissions", "tasks", "discussion"] },
+  {
+    name: PRACTICAL_INSTRUCTOR_GROUP,
+    description: PRACTICAL_INSTRUCTOR_DESCRIPTION,
+    menus: [...PRACTICAL_INSTRUCTOR_MENUS],
+  },
 ];
+
+/** Null instructor clears the seat. A new id must be an active member of the practical-instructor group. The current id stays valid after the person leaves the group. */
+export function instructorAssignmentError(input: {
+  instructorId: number | null;
+  existingInstructorId: number | null;
+  groupId: number | null;
+  user: { active: number; permissionGroupId: number | null } | null;
+}): string | null {
+  if (input.instructorId == null) return null;
+  if (input.instructorId === input.existingInstructorId) return null;
+  if (input.groupId == null) return "Chưa có nhóm quyền giảng viên dẫn giảng thực hành.";
+  const user = input.user;
+  if (!user || user.active !== 1 || user.permissionGroupId !== input.groupId) {
+    return "Giảng viên phải thuộc nhóm giảng viên dẫn giảng thực hành.";
+  }
+  return null;
+}

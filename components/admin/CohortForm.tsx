@@ -98,6 +98,7 @@ export function CohortForm({
           <option value="" disabled>Chọn một tài khoản</option>
           {instructors.map((person) => <option key={person.id} value={person.id}>{person.display_name} · @{person.username} · {person.role}</option>)}
         </select>
+        <small className="muted">Chọn từ nhóm Giảng viên dẫn giảng thực hành</small>
       </div>
       <div className="field">
         <label htmlFor={`instructor-code-${formKey}`}>Mã giảng viên</label>

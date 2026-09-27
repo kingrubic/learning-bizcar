@@ -39,6 +39,7 @@
     "source",
     "lib/discussion-access.check.ts",
     "convex/codes.check.ts",
+    "lib/instructor-group.check.ts",
     "lib/password-gate.check.ts",
     "lib/vabix-applier.check.ts"
   ]
