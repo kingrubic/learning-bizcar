@@ -14,13 +14,19 @@ for (const key of ["admin-users", "admin-departments", "admin-groups", "admin-cm
 }
 
 const groupId = 7;
-const member = { active: 1, permissionGroupId: groupId };
+const member = { active: 1, role: "user" as const, permissionGroupId: groupId };
+const admin = { active: 1, role: "admin" as const, permissionGroupId: 1 };
+const mod = { active: 1, role: "mod" as const, permissionGroupId: null };
 assert(instructorAssignmentError({ instructorId: null, existingInstructorId: null, groupId, user: null }) === null, "clear");
 assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: member }) === null, "member");
-assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: { active: 0, permissionGroupId: groupId } }) !== null, "inactive");
-assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: { active: 1, permissionGroupId: 1 } }) !== null, "other group");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: admin }) === null, "admin");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: mod }) === null, "mod");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId: null, user: admin }) === null, "admin without group");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: { active: 0, role: "user", permissionGroupId: groupId } }) !== null, "inactive");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: { active: 0, role: "admin", permissionGroupId: null } }) !== null, "inactive admin");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId, user: { active: 1, role: "user", permissionGroupId: 1 } }) !== null, "plain user");
 assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: null, groupId: null, user: member }) !== null, "missing group");
-assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: 3, groupId, user: { active: 0, permissionGroupId: 1 } }) === null, "keep current");
+assert(instructorAssignmentError({ instructorId: 3, existingInstructorId: 3, groupId, user: { active: 0, role: "user", permissionGroupId: 1 } }) === null, "keep current");
 assert(instructorAssignmentError({ instructorId: 4, existingInstructorId: 3, groupId, user: null }) !== null, "missing user");
 
 console.log("instructor-group ok");

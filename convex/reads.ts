@@ -2,7 +2,7 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { classCatalog, cohortPlan, loadCatalog, type CatalogRow } from "./catalogScope";
 import { BMDO_SLUG, subsetProgress } from "./codes";
-import { PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
+import { isAssignableInstructor, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { gate, passwordFlag, publicUser } from "./helpers";
 
 const secret = { secret: v.string() };
@@ -519,7 +519,7 @@ export const cohortsView = query({
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"))
       .map(toPerson);
     const instructors = userDocs
-      .filter((row) => row.active === 1 && group != null && row.permissionGroupId === group.legacyId)
+      .filter((row) => isAssignableInstructor(row, group?.legacyId ?? null))
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"))
       .map(toPerson);
     const loaded = await loadCatalog(ctx);
