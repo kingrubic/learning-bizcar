@@ -4,6 +4,7 @@ import { BMDO_SLUG } from "@/convex/codes";
 import { GROUPS, LESSONS } from "@/lib/course";
 import { messages, type Locale } from "@/lib/i18n";
 import { cmsLessons } from "@/lib/cms";
+import { babosoraDisplay } from "@/lib/babosora-applier";
 import { vabixDisplay } from "@/lib/vabix-applier";
 
 export async function CourseMap({ userId, locale, courseSlug }: { userId: number; locale: Locale; courseSlug?: string }) {
@@ -20,7 +21,7 @@ export async function CourseMap({ userId, locale, courseSlug }: { userId: number
   return (
     <div>
       {groups.map((group) => {
-        const rows = lessons.filter((lesson) => lesson.group_name === group && (vabixDisplay(lesson.storage_key, lesson.number, locale) || !useCms || copies.get(lesson.number)?.published !== 0));
+        const rows = lessons.filter((lesson) => lesson.group_name === group && (vabixDisplay(lesson.storage_key, lesson.number, locale) || babosoraDisplay(lesson.storage_key, lesson.number, locale) || !useCms || copies.get(lesson.number)?.published !== 0));
         if (rows.length === 0) return null;
         return (
         <section className="group" key={group}>
@@ -31,7 +32,7 @@ export async function CourseMap({ userId, locale, courseSlug }: { userId: number
               const status = answer?.status ?? "not_started";
               const unlocked = unlockedByNumber.get(lesson.number) ?? false;
               const meta = LESSONS.find((item) => item.number === lesson.number);
-              const local = vabixDisplay(lesson.storage_key, lesson.number, locale);
+              const local = vabixDisplay(lesson.storage_key, lesson.number, locale) ?? babosoraDisplay(lesson.storage_key, lesson.number, locale);
               const copy = local ? undefined : copies.get(lesson.number);
               const code = String(lesson.number).padStart(2, "0");
               return (

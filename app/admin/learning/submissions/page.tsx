@@ -2,6 +2,7 @@ import { api, q } from "@/lib/convex";
 import { getSession } from "@/lib/auth";
 import { addFeedback } from "@/lib/admin-actions";
 import { WORKBOOK, readPath } from "@/lib/course";
+import { babosoraFields, isBabosoraStorageKey } from "@/lib/babosora-applier";
 import { isVabixStorageKey, vabixFields } from "@/lib/vabix-applier";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function SubmissionsPage() {
       {rows.length === 0 && <p>Chưa có bài nộp.</p>}
       {rows.map((row) => {
         const answers = JSON.parse(row.answers_json) as unknown;
-        const fields = (isVabixStorageKey(row.storage_key) ? vabixFields(row.number) : (WORKBOOK[row.number] ?? [])).map((field) => ({ ...field, value: readPath(answers, field.path) })).filter((field) => field.value);
+        const fields = (isVabixStorageKey(row.storage_key) ? vabixFields(row.number) : isBabosoraStorageKey(row.storage_key) ? babosoraFields(row.number) : (WORKBOOK[row.number] ?? [])).map((field) => ({ ...field, value: readPath(answers, field.path) })).filter((field) => field.value);
         const notes = row.notes;
         return (
           <article className="card" key={row.id} style={{ marginTop: 12 }}>

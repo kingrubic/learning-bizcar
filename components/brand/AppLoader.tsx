@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
-const MAIN = new Set(["/learn/login", "/learn/dashboard", "/learn/course/bmdo-k03", "/learn/course/vabix-applier", "/admin/learning"]);
+const MAIN = new Set(["/learn/login", "/learn/dashboard", "/learn/course/bmdo-k03", "/learn/course/vabix-applier", "/learn/course/babosora-applier", "/admin/learning"]);
 
 function isMain(pathname: string) {
   return MAIN.has(pathname);

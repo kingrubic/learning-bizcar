@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as babosoraApplier from "../babosoraApplier.js";
 import type * as catalog from "../catalog.js";
 import type * as discussion from "../discussion.js";
 import type * as discussionAccess from "../discussionAccess.js";
@@ -26,6 +27,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  babosoraApplier: typeof babosoraApplier;
   catalog: typeof catalog;
   discussion: typeof discussion;
   discussionAccess: typeof discussionAccess;

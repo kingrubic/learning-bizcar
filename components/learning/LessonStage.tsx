@@ -69,7 +69,14 @@ export function LessonStage(props: Props) {
       ${scope} .shell{max-width:none;padding:4px 0 32px}
       ${scope} header.top{display:none}
     `;
-    style.textContent = `${current.css}${chrome}`;
+    const fitted = scope === "babosora-lesson"
+      ? `${chrome}
+      .babosora-lesson .app{min-height:0 !important}
+      .babosora-lesson .side{position:static;height:auto}
+      .babosora-lesson .topbar{position:static}
+      `
+      : chrome;
+    style.textContent = `${current.css}${fitted}`;
     root.prepend(style);
 
     delete window.__bizcarProgress;
@@ -285,5 +292,8 @@ declare global {
     __vabixSession?: number;
     __vabixStorageKey?: string;
     __vabixOpenSession?: (index: number) => void;
+    __babosoraSession?: number;
+    __babosoraStorageKey?: string;
+    __babosoraOpenSession?: (index: number) => void;
   }
 }
