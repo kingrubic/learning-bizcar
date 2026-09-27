@@ -25,7 +25,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   return (
     <main>
       <h1 className="serif" style={{ fontSize: 42 }}>{t.adminDesk}</h1>
-      <p className="muted">Theo dõi học viên, cohort và tiến độ. Không có bảng xếp hạng.</p>
+      <p className="muted">Theo dõi học viên, cohort và tiến độ. Cột bài xong đếm bài học nằm trong buổi của lớp, mỗi bài một lần. Không có bảng xếp hạng.</p>
       <p className="row-actions" style={{ marginTop: 12 }}>
         <Link className="btn gold" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link>
       </p>
@@ -63,7 +63,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       {user?.role === "admin" && !selected && (state?.enrollments.length ?? 0) === 0 && <p className="muted" style={{ marginTop: 12 }}>{t.pickCohortToJoin}</p>}
       <div className="table-wrap card" style={{ marginTop: 16, padding: 0 }}>
         <table>
-          <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Cohort</th><th>Buổi xong</th><th>Hoạt động</th><th></th></tr></thead>
+          <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Cohort</th><th>Bài xong</th><th>Hoạt động</th><th></th></tr></thead>
           <tbody>
             {rows.map((row) => (
               <tr key={`${row.id}-${row.cohort_id}`}>

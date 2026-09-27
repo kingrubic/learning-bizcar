@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { lessonUnlocked, subsetProgress } from "@/convex/codes";
+import { isLessonInOpenSession, subsetProgress } from "@/convex/codes";
 import { api, q } from "./convex";
 import { type LessonStatus, type UnlockMode } from "./db";
 import type { SessionUser } from "./auth";
@@ -74,13 +74,17 @@ export async function isLessonUnlocked(userId: number, lessonNumber: number, cou
   if (!state || !enrollment) return false;
   const lesson = state.lessons.find((item) => item.number === lessonNumber);
   if (!lesson) return false;
-  const unlock = state.unlocks.find((item) => item.lesson_id === lesson.id);
-  return lessonUnlocked({
+  return isLessonInOpenSession({
     mode: enrollment.unlock_mode,
-    orderedIds: state.lessons.map((item) => item.id),
+    sessions: state.sessions.map((session) => ({
+      id: session.id,
+      sortOrder: session.sort_order,
+      title: session.title,
+      sessionDate: session.session_date,
+      lessonIds: session.lesson_ids,
+    })),
     lessonId: lesson.id,
     answers: state.answers.map((row) => ({ lessonId: row.lesson_id, status: row.status })),
-    unlockAt: unlock?.unlock_at,
     nowMs: Date.now(),
   });
 }

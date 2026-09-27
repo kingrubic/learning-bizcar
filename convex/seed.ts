@@ -19,9 +19,26 @@ async function bmdoCourses(ctx: MutationCtx) {
   return (await ctx.db.query("courses").collect()).filter((course) => course.slug === BMDO_SLUG);
 }
 
+const SESSIONS_BACKFILL = "classSessionsBackfill";
+
 async function attachNewLesson(ctx: MutationCtx, courseId: number, lessonId: number, sortOrder: number) {
-  const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseId && row.lessonsScoped === 1);
+  const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseId);
+  const priorIds = (await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", courseId)).collect())
+    .filter((row) => row.legacyId !== lessonId && row.archived !== 1)
+    .map((row) => row.legacyId);
   for (const cohort of cohorts) {
+    const sessions = await ctx.db.query("classSessions").withIndex("by_cohort", (q) => q.eq("cohortId", cohort.legacyId)).collect();
+    if (sessions.length === 1) {
+      const links = await ctx.db.query("classSessionLessons").withIndex("by_session", (q) => q.eq("sessionId", sessions[0].legacyId)).collect();
+      if (links.some((link) => link.lessonId === lessonId)) continue;
+      const have = new Set(links.map((link) => link.lessonId));
+      if (!priorIds.every((id) => have.has(id))) continue;
+      const maxOrder = links.reduce((max, row) => Math.max(max, row.sortOrder), 0);
+      await ctx.db.insert("classSessionLessons", { sessionId: sessions[0].legacyId, lessonId, sortOrder: maxOrder + 1 || sortOrder });
+      continue;
+    }
+    if (sessions.length > 0 || cohort.sessionsReady === 1) continue;
+    if (cohort.lessonsScoped !== 1) continue;
     const existing = await ctx.db
       .query("cohortLessons")
       .withIndex("by_cohort_lesson", (q) => q.eq("cohortId", cohort.legacyId).eq("lessonId", lessonId))
@@ -31,6 +48,84 @@ async function attachNewLesson(ctx: MutationCtx, courseId: number, lessonId: num
   }
 }
 
+async function legacyLessonIds(ctx: MutationCtx, cohort: { legacyId: number; courseId: number; lessonsScoped?: number }) {
+  const links = await ctx.db.query("cohortLessons").withIndex("by_cohort", (q) => q.eq("cohortId", cohort.legacyId)).collect();
+  const lessons = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", cohort.courseId)).collect();
+  const allowed = new Set(lessons.map((row) => row.legacyId));
+  if (cohort.lessonsScoped === 1 || links.length > 0) {
+    return links
+      .filter((link) => allowed.has(link.lessonId))
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((link) => link.lessonId);
+  }
+  return lessons
+    .filter((row) => row.archived !== 1)
+    .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number)
+    .map((row) => row.legacyId);
+}
+
+/** One buổi covering the previous lesson subset. Scheduled classes become all_open (the buổi has no date). Does not touch learner answers. */
+export async function migrateCohortSessions(ctx: MutationCtx, cohort: {
+  _id: import("./_generated/dataModel").Id<"cohorts">;
+  legacyId: number;
+  courseId: number;
+  lessonsScoped?: number;
+  unlockMode: "all_open" | "sequential" | "scheduled";
+  sessionsReady?: number;
+}) {
+  if (cohort.sessionsReady === 1) return { created: false, relaxed: false };
+  const existing = await ctx.db.query("classSessions").withIndex("by_cohort", (q) => q.eq("cohortId", cohort.legacyId)).collect();
+  if (existing.length > 0) {
+    await ctx.db.patch(cohort._id, { sessionsReady: 1 });
+    return { created: false, relaxed: false };
+  }
+  const lessonIds = await legacyLessonIds(ctx, cohort);
+  const relaxed = cohort.unlockMode === "scheduled";
+  await ctx.db.patch(cohort._id, { sessionsReady: 1, ...(relaxed ? { unlockMode: "all_open" as const } : {}) });
+  if (lessonIds.length === 0) return { created: false, relaxed };
+  const sessionId = await nextId(ctx, "classSessions");
+  await ctx.db.insert("classSessions", {
+    legacyId: sessionId,
+    cohortId: cohort.legacyId,
+    title: "Buổi 01",
+    sessionDate: null,
+    sortOrder: 1,
+  });
+  let order = 0;
+  for (const lessonId of lessonIds) {
+    order += 1;
+    await ctx.db.insert("classSessionLessons", { sessionId, lessonId, sortOrder: order });
+  }
+  return { created: true, relaxed };
+}
+
+async function migrateAllCohorts(ctx: MutationCtx) {
+  let sessionsCreated = 0;
+  let scheduledRelaxed = 0;
+  let alreadyReady = 0;
+  for (const cohort of await ctx.db.query("cohorts").collect()) {
+    const result = await migrateCohortSessions(ctx, cohort);
+    if (result.created) sessionsCreated += 1;
+    if (result.relaxed) scheduledRelaxed += 1;
+    if (!result.created && !result.relaxed && cohort.sessionsReady === 1) alreadyReady += 1;
+  }
+  return { sessionsCreated, scheduledRelaxed, alreadyReady };
+}
+
+async function markSessionsBackfill(ctx: MutationCtx) {
+  const flag = await ctx.db.query("counters").withIndex("by_name", (q) => q.eq("name", SESSIONS_BACKFILL)).unique();
+  if (flag) await ctx.db.patch(flag._id, { value: 1 });
+  else await ctx.db.insert("counters", { name: SESSIONS_BACKFILL, value: 1 });
+}
+
+async function ensureSessionsBackfill(ctx: MutationCtx) {
+  const flag = await ctx.db.query("counters").withIndex("by_name", (q) => q.eq("name", SESSIONS_BACKFILL)).unique();
+  if (flag?.value === 1) return { skipped: true as const, sessionsCreated: 0, scheduledRelaxed: 0, alreadyReady: 0 };
+  const result = await migrateAllCohorts(ctx);
+  await markSessionsBackfill(ctx);
+  return { skipped: false as const, ...result };
+}
+
 export const ensureCatalog = mutation({
   args: { secret: v.string() },
   handler: async (ctx, args) => {
@@ -38,6 +133,7 @@ export const ensureCatalog = mutation({
     const existing = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", COURSE.slug)).unique();
     if (existing) {
       await ensureLearnerDiscussionMenu(ctx);
+      await ensureSessionsBackfill(ctx);
       return { ok: true, seeded: false };
     }
 
@@ -112,6 +208,7 @@ export const ensureCatalog = mutation({
     for (const [key, locale, body] of CMS_BLOCKS) {
       await ctx.db.insert("cmsBlocks", { key, locale, body, updatedAt: createdAt });
     }
+    await ensureSessionsBackfill(ctx);
     return { ok: true, seeded: true };
   },
 });
@@ -486,6 +583,8 @@ export const addCourseVabixApplier = mutation({
       }
       cohortInserted = true;
     }
+    const cohortRow = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", cohortId)).unique();
+    if (cohortRow) await migrateCohortSessions(ctx, cohortRow);
     return {
       ok: true,
       courseId: courseRow.legacyId,
@@ -546,7 +645,8 @@ export const upsertAdmin = mutation({
 });
 
 /**
- * Backfill Phase 1 mã, class lesson subsets, and a single instructor pointer.
+ * Backfill Phase 1 mã, class lesson subsets, a single instructor pointer,
+ * then one buổi per class covering that subset.
  * Idempotent. Does not rewrite lesson answers.
  *
  *   npx convex run seed:backfillPhase1 '{"secret":"<APP_SECRET>"}'
@@ -636,6 +736,24 @@ export const backfillPhase1 = mutation({
       await ctx.db.patch(user._id, { managementCode: code });
       usersUpdated += 1;
     }
-    return { coursesUpdated, cohortsUpdated, linksInserted, usersUpdated };
+    const sessions = await ensureSessionsBackfill(ctx);
+    return { coursesUpdated, cohortsUpdated, linksInserted, usersUpdated, ...sessions };
+  },
+});
+
+/**
+ * Turn each class lesson subset into one buổi covering those bài.
+ * Scheduled classes become all_open because the buổi has no date.
+ * Idempotent. Does not rewrite lesson answers.
+ *
+ *   npx convex run seed:backfillClassSessions '{"secret":"<APP_SECRET>"}'
+ */
+export const backfillClassSessions = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const result = await migrateAllCohorts(ctx);
+    await markSessionsBackfill(ctx);
+    return result;
   },
 });
