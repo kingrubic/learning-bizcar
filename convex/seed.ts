@@ -1,6 +1,7 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PRACTICAL_INSTRUCTOR_DESCRIPTION, PRACTICAL_INSTRUCTOR_GROUP, PRACTICAL_INSTRUCTOR_MENUS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
+import { BABOSORA_COURSE, BABOSORA_LESSONS } from "./babosoraApplier";
 import { VABIX_COURSE, VABIX_LESSONS } from "./vabixApplier";
 import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode } from "./codes";
 import { gate, nextId, now } from "./helpers";
@@ -613,6 +614,100 @@ export const addCourseVabixApplier = mutation({
       });
       const applierLessons = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId)).collect();
       for (const lesson of applierLessons) {
+        await ctx.db.insert("cohortLessons", { cohortId, lessonId: lesson.legacyId, sortOrder: lesson.sortOrder ?? lesson.number });
+      }
+      cohortInserted = true;
+    }
+    const cohortRow = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", cohortId)).unique();
+    if (cohortRow) await migrateCohortSessions(ctx, cohortRow);
+    return {
+      ok: true,
+      courseId: courseRow.legacyId,
+      courseInserted,
+      lessonsInserted: insertedLessons,
+      cohortId,
+      cohortInserted,
+    };
+  },
+});
+
+/**
+ * Add the BABOSORA course, its four lessons, and cohort "BABOSORA · Cohort 01"
+ * when they are missing. Leaves every other course row alone.
+ *
+ *   npx convex run seed:addCourseBabosoraApplier '{"secret":"<APP_SECRET>"}'
+ */
+export const addCourseBabosoraApplier = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const orgs = await ctx.db.query("organizations").collect();
+    const org = orgs.find((row) => row.name === "VABIX") ?? orgs[0];
+    if (!org) throw new Error("CATALOG_MISSING");
+    const createdAt = now();
+    let course = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", BABOSORA_COURSE.slug)).unique();
+    let courseInserted = false;
+    if (!course) {
+      const courseId = await nextId(ctx, "courses");
+      await ctx.db.insert("courses", {
+        legacyId: courseId,
+        slug: BABOSORA_COURSE.slug,
+        code: BABOSORA_COURSE.code,
+        title: BABOSORA_COURSE.title,
+        tagline: BABOSORA_COURSE.tagline,
+        intro: "",
+        managementCode: courseManagementCode(BABOSORA_COURSE.code),
+      });
+      course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", courseId)).unique();
+      courseInserted = true;
+    }
+    if (!course) throw new Error("COURSE_INSERT_FAILED");
+    const courseRow = course;
+    const insertedLessons: number[] = [];
+    for (const spec of BABOSORA_LESSONS) {
+      const existing = await ctx.db
+        .query("lessons")
+        .withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId).eq("number", spec.number))
+        .unique();
+      if (existing) continue;
+      const lessonId = await nextId(ctx, "lessons");
+      await ctx.db.insert("lessons", {
+        legacyId: lessonId,
+        courseId: courseRow.legacyId,
+        number: spec.number,
+        title: spec.title,
+        framework: spec.framework,
+        summary: spec.summary,
+        groupName: spec.group,
+        hasReport: spec.hasReport ? 1 : 0,
+        storageKey: spec.storageKey,
+        contentVersion: spec.contentVersion,
+        schemaVersion: spec.schemaVersion,
+        archived: 0,
+        sortOrder: spec.number,
+      });
+      await attachNewLesson(ctx, courseRow.legacyId, lessonId, spec.number);
+      insertedLessons.push(spec.number);
+    }
+    const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseRow.legacyId);
+    let cohortInserted = false;
+    let cohortId = cohorts[0]?.legacyId ?? 0;
+    if (!cohortId) {
+      cohortId = await nextId(ctx, "cohorts");
+      await ctx.db.insert("cohorts", {
+        legacyId: cohortId,
+        organizationId: org.legacyId,
+        courseId: courseRow.legacyId,
+        name: BABOSORA_COURSE.cohortName,
+        unlockMode: "all_open",
+        reviewEnabled: 1,
+        createdAt,
+        code: classManagementCode(BABOSORA_COURSE.code, 1),
+        instructorId: null,
+        lessonsScoped: 1,
+      });
+      const seededLessons = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId)).collect();
+      for (const lesson of seededLessons) {
         await ctx.db.insert("cohortLessons", { cohortId, lessonId: lesson.legacyId, sortOrder: lesson.sortOrder ?? lesson.number });
       }
       cohortInserted = true;

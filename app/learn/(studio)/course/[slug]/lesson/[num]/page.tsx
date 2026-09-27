@@ -4,6 +4,7 @@ import { answerFor, isLessonUnlocked, learningState } from "@/lib/access";
 import { BMDO_SLUG } from "@/convex/codes";
 import { lessonByNumber, type LessonMeta } from "@/lib/course";
 import { loadLessonSource } from "@/lib/lesson-source";
+import { babosoraLesson, isBabosoraCourse } from "@/lib/babosora-applier";
 import { isVabixCourse, vabixLesson } from "@/lib/vabix-applier";
 import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
@@ -25,11 +26,12 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   const row = rows.find((item) => item.number === number);
   if (!row) notFound();
   const vabix = isVabixCourse(slug, row.storage_key);
-  const meta = vabix ? vabixLesson(number) : lessonByNumber(number);
+  const babosora = isBabosoraCourse(slug, row.storage_key);
+  const meta = vabix ? vabixLesson(number) : babosora ? babosoraLesson(number) : lessonByNumber(number);
   if (!meta) notFound();
   const published = state.course.slug === BMDO_SLUG ? await lessonPublished(number) : true;
   if (!published || !(await isLessonUnlocked(user.id, number, slug))) redirect(`/learn/course/${state.course.slug}`);
-  const lesson: LessonMeta = vabix
+  const lesson: LessonMeta = vabix || babosora
     ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
     : meta;
   const saved = await answerFor(user.id, row.id, slug);

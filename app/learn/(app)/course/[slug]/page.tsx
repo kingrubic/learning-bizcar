@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 import { cmsBlock } from "@/lib/cms";
+import { BABOSORA_COURSE, isBabosoraCourse } from "@/lib/babosora-applier";
 import { isVabixCourse, VABIX_COURSE } from "@/lib/vabix-applier";
 import { BMDO_SLUG } from "@/convex/codes";
 
@@ -23,15 +24,18 @@ export default async function CoursePage({ params }: { params: Promise<{ slug: s
   const locale = await getLocale();
   const t = messages(locale);
   const vabix = isVabixCourse(course.slug, state.lessons[0]?.storage_key);
+  const babosora = isBabosoraCourse(course.slug, state.lessons[0]?.storage_key);
   const lede = vabix
     ? VABIX_COURSE.mapLede[locale]
-    : course.slug === BMDO_SLUG
-      ? await cmsBlock("map.lede", locale, t.mapLede)
-      : (course.intro || course.tagline);
+    : babosora
+      ? BABOSORA_COURSE.mapLede[locale]
+      : course.slug === BMDO_SLUG
+        ? await cmsBlock("map.lede", locale, t.mapLede)
+        : (course.intro || course.tagline);
   return (
     <main className="page">
       <div className="eyebrow">{course.management_code || course.code}</div>
-      <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{vabix || course.slug !== BMDO_SLUG ? course.title : t.mapTitle}</h1>
+      <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{vabix || babosora || course.slug !== BMDO_SLUG ? course.title : t.mapTitle}</h1>
       <p className="lede">{lede}</p>
       <CourseMap userId={user.id} locale={locale} courseSlug={course.slug} />
     </main>

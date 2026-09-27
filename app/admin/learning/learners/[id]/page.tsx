@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { canCoachSee, learningState } from "@/lib/access";
 import { setManagementCode } from "@/lib/admin-actions";
 import { WORKBOOK, readPath } from "@/lib/course";
+import { babosoraFields, isBabosoraStorageKey } from "@/lib/babosora-applier";
 import { isVabixStorageKey, vabixFields } from "@/lib/vabix-applier";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
@@ -44,7 +45,7 @@ export default async function LearnerDetail({ params, searchParams }: { params: 
       <ul>{logs.map((log) => <li key={log.created_at + log.action}>{log.created_at} · {log.action} {log.detail ?? ""}</li>)}</ul>
       {answers.map((answer) => {
         const data = JSON.parse(answer.answers_json) as unknown;
-        const fields = (isVabixStorageKey(answer.storage_key) ? vabixFields(answer.number) : (WORKBOOK[answer.number] ?? [])).map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
+        const fields = (isVabixStorageKey(answer.storage_key) ? vabixFields(answer.number) : isBabosoraStorageKey(answer.storage_key) ? babosoraFields(answer.number) : (WORKBOOK[answer.number] ?? [])).map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
         return (
           <section className="card" key={answer.number} style={{ marginTop: 12 }}>
             <h3>Bài học {String(answer.number).padStart(2, "0")} · {answer.framework} · {answer.status} · {answer.progress_percent}% · {answer.current_phase}</h3>

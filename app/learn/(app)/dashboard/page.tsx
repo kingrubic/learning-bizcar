@@ -7,6 +7,7 @@ import { CourseMap } from "@/components/learning/CourseMap";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 import { cmsAnnouncements, cmsBlock, cmsLesson } from "@/lib/cms";
+import { BABOSORA_COURSE, babosoraDisplay, isBabosoraCourse } from "@/lib/babosora-applier";
 import { isVabixCourse, VABIX_COURSE, vabixDisplay } from "@/lib/vabix-applier";
 
 export default async function DashboardPage() {
@@ -29,17 +30,18 @@ export default async function DashboardPage() {
   const hour = new Date().getHours();
   const greet = hour < 11 ? t.greeting.morning : hour < 18 ? t.greeting.afternoon : t.greeting.evening;
   const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
-  const continueCopy = continueLesson && !vabix ? await cmsLesson(continueLesson.number) : undefined;
-  const recentCopy = recentLesson && !vabix ? await cmsLesson(recentLesson.number) : undefined;
-  const continueLocal = continueLesson ? vabixDisplay(continueLesson.storage_key, continueLesson.number, locale) : null;
-  const recentLocal = recentLesson ? vabixDisplay(recentLesson.storage_key, recentLesson.number, locale) : null;
+  const babosora = isBabosoraCourse(course.slug, lessons[0]?.storage_key);
+  const continueCopy = continueLesson && !vabix && !babosora ? await cmsLesson(continueLesson.number) : undefined;
+  const recentCopy = recentLesson && !vabix && !babosora ? await cmsLesson(recentLesson.number) : undefined;
+  const continueLocal = continueLesson ? vabixDisplay(continueLesson.storage_key, continueLesson.number, locale) ?? babosoraDisplay(continueLesson.storage_key, continueLesson.number, locale) : null;
+  const recentLocal = recentLesson ? vabixDisplay(recentLesson.storage_key, recentLesson.number, locale) ?? babosoraDisplay(recentLesson.storage_key, recentLesson.number, locale) : null;
   const notices = await cmsAnnouncements(locale);
 
   return (
     <main className="page">
       <div className="eyebrow">{course.code} · {t.executive}</div>
       <h1 className="serif display">{greet}, {user.displayName.split(" ").slice(-1)}</h1>
-      <p className="lede">{vabix ? VABIX_COURSE.mapLede[locale] : await cmsBlock("dashboard.lede", locale, t.lede)}</p>
+      <p className="lede">{vabix ? VABIX_COURSE.mapLede[locale] : babosora ? BABOSORA_COURSE.mapLede[locale] : await cmsBlock("dashboard.lede", locale, t.lede)}</p>
       {notices.map((item) => (
         <p className="notice" key={item.id}><strong>{item.title}</strong><span>{item.body}</span></p>
       ))}
