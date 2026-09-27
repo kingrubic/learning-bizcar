@@ -69,7 +69,7 @@ export function LessonExperience({
 
   async function post(url: string) {
     setBusy(url);
-    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonNumber: lesson.number }) });
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonNumber: lesson.number, courseSlug }) });
     setBusy("");
     if (response.ok) router.refresh();
   }
@@ -155,6 +155,7 @@ export function LessonExperience({
         <div className="shell-content">
           <LessonStage
             lessonNumber={lesson.number}
+            courseSlug={courseSlug}
             storageKey={lesson.storageKey}
             css={source.css}
             html={source.html}

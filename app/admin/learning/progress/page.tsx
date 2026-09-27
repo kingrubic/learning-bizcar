@@ -13,9 +13,9 @@ export default async function ProgressPage() {
           <thead><tr><th>Học viên</th><th>Bài</th><th>Pha</th><th>Tiến độ</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
           <tbody>
             {rows.filter((row) => row.number).map((row) => (
-              <tr key={`${row.id}-${row.number}`}>
+              <tr key={`${row.id}-${row.course_code}-${row.number}`}>
                 <td><Link href={`/admin/learning/learners/${row.id}`}>{row.display_name}</Link></td>
-                <td>{String(row.number).padStart(2, "0")} · {row.title}</td>
+                <td>{row.course_code} · {String(row.number).padStart(2, "0")} · {row.title}</td>
                 <td>{row.current_phase}</td>
                 <td>{row.progress_percent}%</td>
                 <td>{row.status}</td>

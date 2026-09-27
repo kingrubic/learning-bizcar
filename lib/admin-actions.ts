@@ -118,19 +118,161 @@ export async function resetPassword(userId: number) {
   return temp;
 }
 
-export async function createCohort(formData: FormData) {
+function lessonIdsFrom(formData: FormData) {
+  return formData.getAll("lessonIds").map((value) => Number(value)).filter((id) => Number.isInteger(id) && id > 0);
+}
+
+export async function saveCohort(formData: FormData) {
   const user = await actor(true);
   const name = String(formData.get("name") || "").trim();
   const courseId = Number(formData.get("courseId"));
   const mode = String(formData.get("mode") || "sequential");
+  const instructorId = Number(formData.get("instructorId"));
+  const cohortRaw = Number(formData.get("cohortId") || 0);
+  const cohortId = Number.isInteger(cohortRaw) && cohortRaw > 0 ? cohortRaw : undefined;
   if (!name || !courseId) redirect("/admin/learning/cohorts?error=Thiếu tên lớp hoặc khoá.");
+  if (!Number.isInteger(instructorId) || instructorId <= 0) redirect("/admin/learning/cohorts?error=Chọn một giảng viên.");
   if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") redirect("/admin/learning/cohorts?error=Cách mở bài không hợp lệ.");
-  const created = await q((convex, secret) => convex.mutation(api.writes.createCohort, { secret, actorId: user.id, name, courseId, mode }));
+  const created = await q((convex, secret) => convex.mutation(api.writes.saveCohort, {
+    secret,
+    actorId: user.id,
+    ...(cohortId ? { cohortId } : {}),
+    name,
+    courseId,
+    mode,
+    code: String(formData.get("code") || ""),
+    instructorId,
+    lessonIds: lessonIdsFrom(formData),
+    instructorCode: String(formData.get("instructorCode") || ""),
+  }));
   if ("error" in created && created.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(created.error)}`);
   revalidatePath("/admin/learning/cohorts");
   revalidatePath("/admin/learning");
   revalidatePath("/admin/learning/learners");
+  revalidatePath("/learn/dashboard");
   redirect("/admin/learning/cohorts");
+}
+
+export async function saveCourse(formData: FormData) {
+  const user = await actor(true);
+  const code = String(formData.get("code") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  const tagline = String(formData.get("tagline") || "").trim();
+  const intro = String(formData.get("intro") || "").trim();
+  const managementCode = String(formData.get("managementCode") || "").trim();
+  const courseRaw = Number(formData.get("courseId") || 0);
+  const courseId = Number.isInteger(courseRaw) && courseRaw > 0 ? courseRaw : undefined;
+  if (!code || !title) redirect("/admin/learning/courses?error=Thiếu mã hoặc tên khoá.");
+  const saved = await q((convex, secret) => convex.mutation(api.writes.saveCourse, {
+    secret,
+    actorId: user.id,
+    ...(courseId ? { courseId } : {}),
+    code,
+    title,
+    tagline,
+    intro,
+    managementCode,
+  }));
+  if ("error" in saved && saved.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(saved.error)}`);
+  revalidatePath("/admin/learning/courses");
+  revalidatePath("/admin/learning/cohorts");
+  redirect("/admin/learning/courses");
+}
+
+export async function addCourseLesson(formData: FormData) {
+  const user = await actor(true);
+  const courseId = Number(formData.get("courseId"));
+  const saved = await q((convex, secret) => convex.mutation(api.writes.addCourseLesson, {
+    secret,
+    actorId: user.id,
+    courseId,
+    title: String(formData.get("title") || ""),
+    framework: String(formData.get("framework") || ""),
+    summary: String(formData.get("summary") || ""),
+    groupName: String(formData.get("groupName") || ""),
+  }));
+  if ("error" in saved && saved.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(saved.error)}`);
+  revalidatePath("/admin/learning/courses");
+  revalidatePath("/admin/learning/cohorts");
+  redirect("/admin/learning/courses");
+}
+
+export async function updateCourseLesson(formData: FormData) {
+  const user = await actor(true);
+  const saved = await q((convex, secret) => convex.mutation(api.writes.updateCourseLesson, {
+    secret,
+    actorId: user.id,
+    lessonId: Number(formData.get("lessonId")),
+    title: String(formData.get("title") || ""),
+    framework: String(formData.get("framework") || ""),
+    summary: String(formData.get("summary") || ""),
+    groupName: String(formData.get("groupName") || ""),
+    archived: formData.get("archived") === "on",
+  }));
+  if ("error" in saved && saved.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(saved.error)}`);
+  revalidatePath("/admin/learning/courses");
+  revalidatePath("/admin/learning/cohorts");
+  redirect("/admin/learning/courses");
+}
+
+export async function moveCourseLesson(formData: FormData) {
+  const user = await actor(true);
+  const direction = String(formData.get("direction")) === "up" ? "up" : "down";
+  await q((convex, secret) => convex.mutation(api.writes.moveCourseLesson, {
+    secret,
+    actorId: user.id,
+    lessonId: Number(formData.get("lessonId")),
+    direction,
+  }));
+  revalidatePath("/admin/learning/courses");
+  redirect("/admin/learning/courses");
+}
+
+export async function enrollLearner(formData: FormData) {
+  const user = await actor(true);
+  const result = await q((convex, secret) => convex.mutation(api.writes.enrollLearner, {
+    secret,
+    actorId: user.id,
+    userId: Number(formData.get("userId")),
+    cohortId: Number(formData.get("cohortId")),
+  }));
+  if ("error" in result && result.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(result.error)}`);
+  revalidatePath("/admin/learning/cohorts");
+  revalidatePath("/admin/learning/learners");
+  revalidatePath("/admin/learning");
+  revalidatePath("/learn/dashboard");
+  redirect("/admin/learning/cohorts");
+}
+
+export async function unenrollLearner(formData: FormData) {
+  const user = await actor(true);
+  const result = await q((convex, secret) => convex.mutation(api.writes.unenrollLearner, {
+    secret,
+    actorId: user.id,
+    userId: Number(formData.get("userId")),
+    cohortId: Number(formData.get("cohortId")),
+  }));
+  if ("error" in result && result.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(result.error)}`);
+  revalidatePath("/admin/learning/cohorts");
+  revalidatePath("/admin/learning/learners");
+  revalidatePath("/admin/learning");
+  revalidatePath("/learn/dashboard");
+  redirect("/admin/learning/cohorts");
+}
+
+export async function setManagementCode(formData: FormData) {
+  const user = await actor(true);
+  const userId = Number(formData.get("userId"));
+  const result = await q((convex, secret) => convex.mutation(api.writes.setManagementCode, {
+    secret,
+    actorId: user.id,
+    userId,
+    code: String(formData.get("code") || ""),
+  }));
+  if ("error" in result && result.error) redirect(`/admin/learning/learners/${userId}?error=${encodeURIComponent(result.error)}`);
+  revalidatePath("/admin/learning/learners");
+  revalidatePath(`/admin/learning/learners/${userId}`);
+  redirect(`/admin/learning/learners/${userId}`);
 }
 
 export async function cloneCourse(formData: FormData) {

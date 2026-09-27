@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answerFor, enrollmentFor, isLessonUnlocked, learningState } from "@/lib/access";
+import { answerFor, isLessonUnlocked, learningState } from "@/lib/access";
+import { BMDO_SLUG } from "@/convex/codes";
 import { lessonByNumber, type LessonMeta } from "@/lib/course";
 import { loadLessonSource } from "@/lib/lesson-source";
 import { isVabixCourse, vabixLesson } from "@/lib/vabix-applier";
@@ -16,21 +17,22 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   const user = await getSession();
   if (!user) redirect("/learn/login");
   if (!(await canSee(user, "map"))) redirect("/learn/profile");
-  const enrollment = await enrollmentFor(user.id);
+  const state = await learningState(user.id, slug);
+  if (!state || slug !== state.course.slug) notFound();
+  const enrollment = state.enrollment;
   if (!enrollment || enrollment.member_role !== "learner") redirect("/learn/dashboard");
-  const state = await learningState(user.id);
-  if (slug !== state.course.slug) notFound();
   const rows = state.lessons;
   const row = rows.find((item) => item.number === number);
   if (!row) notFound();
   const vabix = isVabixCourse(slug, row.storage_key);
   const meta = vabix ? vabixLesson(number) : lessonByNumber(number);
   if (!meta) notFound();
-  if ((!vabix && !(await lessonPublished(number))) || !(await isLessonUnlocked(user.id, number))) redirect(`/learn/course/${state.course.slug}`);
+  const published = state.course.slug === BMDO_SLUG ? await lessonPublished(number) : true;
+  if (!published || !(await isLessonUnlocked(user.id, number, slug))) redirect(`/learn/course/${state.course.slug}`);
   const lesson: LessonMeta = vabix
     ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
     : meta;
-  const saved = await answerFor(user.id, row.id);
+  const saved = await answerFor(user.id, row.id, slug);
   const source = loadLessonSource(number, { slug, storageKey: row.storage_key });
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
   const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
@@ -40,7 +42,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
     title: item.title,
     framework: item.framework,
     status: "not_started" as const,
-    unlocked: await isLessonUnlocked(user.id, item.number),
+    unlocked: await isLessonUnlocked(user.id, item.number, slug),
   })));
   return (
     <LessonExperience

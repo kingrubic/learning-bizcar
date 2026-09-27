@@ -22,7 +22,8 @@ export default defineSchema({
     mustChangePassword: v.number(),
     createdAt: v.string(),
     updatedAt: v.string(),
-  }).index("by_legacy", ["legacyId"]).index("by_username", ["usernameLower"]),
+    managementCode: v.optional(v.string()),
+  }).index("by_legacy", ["legacyId"]).index("by_username", ["usernameLower"]).index("by_management_code", ["managementCode"]),
   sessions: defineTable({
     token: v.string(),
     userId: v.number(),
@@ -39,7 +40,9 @@ export default defineSchema({
     code: v.string(),
     title: v.string(),
     tagline: v.string(),
-  }).index("by_slug", ["slug"]).index("by_legacy", ["legacyId"]),
+    intro: v.optional(v.string()),
+    managementCode: v.optional(v.string()),
+  }).index("by_slug", ["slug"]).index("by_legacy", ["legacyId"]).index("by_management_code", ["managementCode"]),
   lessons: defineTable({
     legacyId: v.number(),
     courseId: v.number(),
@@ -52,6 +55,8 @@ export default defineSchema({
     storageKey: v.string(),
     contentVersion: v.string(),
     schemaVersion: v.string(),
+    archived: v.optional(v.number()),
+    sortOrder: v.optional(v.number()),
   }).index("by_legacy", ["legacyId"]).index("by_course_number", ["courseId", "number"]),
   cohorts: defineTable({
     legacyId: v.number(),
@@ -61,7 +66,16 @@ export default defineSchema({
     unlockMode: v.union(v.literal("all_open"), v.literal("sequential"), v.literal("scheduled")),
     reviewEnabled: v.number(),
     createdAt: v.string(),
-  }).index("by_legacy", ["legacyId"]),
+    code: v.optional(v.string()),
+    instructorId: v.optional(v.union(v.number(), v.null())),
+    // 1 = cohortLessons is the class subset, including an explicit empty list.
+    lessonsScoped: v.optional(v.number()),
+  }).index("by_legacy", ["legacyId"]).index("by_code", ["code"]).index("by_instructor", ["instructorId"]),
+  cohortLessons: defineTable({
+    cohortId: v.number(),
+    lessonId: v.number(),
+    sortOrder: v.number(),
+  }).index("by_cohort", ["cohortId"]).index("by_cohort_lesson", ["cohortId", "lessonId"]),
   lessonUnlocks: defineTable({
     cohortId: v.number(),
     lessonId: v.number(),

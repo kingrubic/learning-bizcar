@@ -1,5 +1,5 @@
 import { getSession } from "@/lib/auth";
-import { enrollmentFor } from "@/lib/access";
+import { learningState } from "@/lib/access";
 import { PasswordForm } from "@/components/learning/PasswordForm";
 import { LogoutButton } from "@/components/learning/LogoutButton";
 import { getLocale } from "@/lib/locale";
@@ -10,14 +10,15 @@ export default async function ProfilePage() {
   if (!user) return null;
   const locale = await getLocale();
   const t = messages(locale);
-  const enrollment = await enrollmentFor(user.id);
+  const seats = (await learningState(user.id))?.enrollments ?? [];
+  const classLabel = seats.length ? seats.map((seat) => `${seat.cohort_name}${seat.cohort_code ? ` (${seat.cohort_code})` : ""}`).join(" · ") : t.noCohort;
   return (
     <main className="page">
       <div className="user-line">
         <div>
           <div className="eyebrow">{t.profile}</div>
           <h1 className="serif" style={{ fontSize: 46, margin: "6px 0" }}>{user.displayName}</h1>
-          <p className="muted">@{user.username} · {t.brandRole[user.role]} · {enrollment?.cohort_name ?? t.noCohort}</p>
+          <p className="muted">@{user.username} · {t.brandRole[user.role]} · {classLabel}</p>
         </div>
         <LogoutButton label={t.logout} />
       </div>
