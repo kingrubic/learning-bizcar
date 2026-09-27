@@ -123,9 +123,6 @@ p, li, .lede, .muted { line-height: 1.65; letter-spacing: 0.004em; }
 .discussion-files a { font-weight: 650; }
 .discussion-picks li { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .discussion-error { color: var(--red); margin: 8px 0; }
-.company-list { display: grid; gap: 12px; }
-.company-copy { white-space: pre-wrap; margin: 8px 0 0; }
-.company-stale { color: var(--gold-deep); font-size: 13px; font-weight: 700; }
 .lang-switch { display: inline-flex; gap: 4px; align-items: center; }
 .lang-switch button {
   display: inline-flex; align-items: center; gap: 6px;
