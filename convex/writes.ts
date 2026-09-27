@@ -17,7 +17,7 @@ async function instructorError(ctx: MutationCtx, instructorId: number | null, ex
     instructorId,
     existingInstructorId,
     groupId: group?.legacyId ?? null,
-    user: user ? { active: user.active, permissionGroupId: user.permissionGroupId } : null,
+    user: user ? { active: user.active, role: user.role, permissionGroupId: user.permissionGroupId } : null,
   });
 }
 

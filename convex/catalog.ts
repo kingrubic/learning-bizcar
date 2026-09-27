@@ -99,19 +99,29 @@ export const PERMISSION_PRESETS = [
   },
 ];
 
-/** Null instructor clears the seat. A new id must be an active member of the practical-instructor group. The current id stays valid after the person leaves the group. */
+type InstructorCandidate = {
+  active: number;
+  role: "admin" | "mod" | "user";
+  permissionGroupId: number | null;
+};
+
+/** Active practical-instructor group member, or an active admin/mod. */
+export function isAssignableInstructor(user: InstructorCandidate | null, groupId: number | null) {
+  if (!user || user.active !== 1) return false;
+  if (user.role === "admin" || user.role === "mod") return true;
+  return groupId != null && user.permissionGroupId === groupId;
+}
+
+/** Null instructor clears the seat. A new id must be an active group member or an active admin/mod. The current id stays valid after the person loses eligibility. */
 export function instructorAssignmentError(input: {
   instructorId: number | null;
   existingInstructorId: number | null;
   groupId: number | null;
-  user: { active: number; permissionGroupId: number | null } | null;
+  user: InstructorCandidate | null;
 }): string | null {
   if (input.instructorId == null) return null;
   if (input.instructorId === input.existingInstructorId) return null;
+  if (isAssignableInstructor(input.user, input.groupId)) return null;
   if (input.groupId == null) return "Chưa có nhóm quyền giảng viên dẫn giảng thực hành.";
-  const user = input.user;
-  if (!user || user.active !== 1 || user.permissionGroupId !== input.groupId) {
-    return "Giảng viên phải thuộc nhóm giảng viên dẫn giảng thực hành.";
-  }
-  return null;
+  return "Giảng viên phải thuộc nhóm giảng viên dẫn giảng thực hành hoặc là admin/mod.";
 }
