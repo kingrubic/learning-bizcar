@@ -18,6 +18,8 @@ type Props = {
   onPhase: (phase: PhaseId, done: PhaseId[], progress: number) => void;
   onSaveState: (state: SaveState, savedAt?: string) => void;
   sampleLabel?: string;
+  scopeClass?: string;
+  showSample?: boolean;
 };
 
 type Bridge = {
@@ -47,9 +49,11 @@ export function LessonStage(props: Props) {
     const current = propsRef.current;
     root.innerHTML = current.html;
     root.querySelectorAll("h1, h2, h3, h4").forEach((heading) => trimTrailingStop(heading));
+    const scope = current.scopeClass || "bizcar-lesson";
     const style = document.createElement("style");
     style.setAttribute("data-lesson-style", String(current.lessonNumber));
-    style.textContent = `${current.css}
+    const chrome = scope === "bizcar-lesson"
+      ? `
       .bizcar-lesson .app{display:block !important;min-height:0 !important}
       .bizcar-lesson aside,.bizcar-lesson .topbar,.bizcar-lesson header.top,.bizcar-lesson .toast{display:none !important}
       .bizcar-lesson .content{max-width:920px;padding:4px 0 48px}
@@ -59,9 +63,15 @@ export function LessonStage(props: Props) {
         --ink:#143420;--paper:#f6f3ea;--white:#fff;--muted:#5e6b62;--line:#e0d6c4;--soft:#efe8d8;
         --gold:#d89830;--gold2:#f8c050;--green:#1f6b45;--teal:#1f6b45;--red:#9d4038;--blue:#1d5c4a;--purple:#3d5c48;
       }
+    `
+      : `
+      ${scope} .shell{max-width:none;padding:4px 0 32px}
+      ${scope} header.top{display:none}
     `;
+    style.textContent = `${current.css}${chrome}`;
     root.prepend(style);
 
+    delete window.__bizcarProgress;
     const key = current.storageKey;
     const localCache = window.localStorage.getItem(cacheKey(current.userId, key));
     let seed = JSON.stringify(current.initialAnswers ?? {});
@@ -77,6 +87,7 @@ export function LessonStage(props: Props) {
     memory.set(key, seed === "{}" ? memory.get(key) ?? seed : seed);
 
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let dirty = false;
     const bridge: Bridge = {
       getItem: (itemKey) => {
         if (itemKey !== key) return null;
@@ -92,6 +103,7 @@ export function LessonStage(props: Props) {
           queueMicrotask(publish);
           return;
         }
+        dirty = true;
         current.onSaveState("saving");
         window.localStorage.setItem(cacheKey(current.userId, key), JSON.stringify({
           dirty: true, updatedAt: new Date().toISOString(), answers: safeParse(value),
@@ -130,6 +142,7 @@ export function LessonStage(props: Props) {
     publish();
 
     async function flush(value: string) {
+      dirty = false;
       try {
         const state = safeParse(value);
         const reading = readDom(root!);
@@ -163,6 +176,7 @@ export function LessonStage(props: Props) {
 
     return () => {
       clearTimeout(timer);
+      if (dirty && !previewRef.current) void flush(memory.get(key) ?? "{}");
       root.innerHTML = "";
     };
   }, [generation, props.lessonNumber, props.script]);
@@ -217,10 +231,12 @@ export function LessonStage(props: Props) {
           </div>
         </div>
       )}
-      <div className="lesson-tools no-print">
-        <button type="button" className="btn" onClick={openSample}>{props.sampleLabel ?? "Xem bài mẫu"}</button>
-      </div>
-      <div ref={rootRef} className="bizcar-lesson" />
+      {props.showSample !== false && (
+        <div className="lesson-tools no-print">
+          <button type="button" className="btn" onClick={openSample}>{props.sampleLabel ?? "Xem bài mẫu"}</button>
+        </div>
+      )}
+      <div ref={rootRef} className={props.scopeClass || "bizcar-lesson"} />
     </div>
   );
 }
@@ -248,7 +264,8 @@ function readDom(root: HTMLElement) {
   const match = text.match(/(\d+)\s*%/);
   const bar = root.querySelector<HTMLElement>("#progress, #progressFill, #sideMeter");
   const widthMatch = bar?.style.width.match(/(\d+)/);
-  const progress = match ? Number(match[1]) : widthMatch ? Number(widthMatch[1]) : (buttons.length ? Math.round((done.length / buttons.length) * 100) : 0);
+  const fromDom = match ? Number(match[1]) : widthMatch ? Number(widthMatch[1]) : null;
+  const progress = fromDom ?? (typeof window.__bizcarProgress === "number" ? window.__bizcarProgress : (buttons.length ? Math.round((done.length / buttons.length) * 100) : 0));
   return { phase, done, progress };
 }
 
@@ -261,5 +278,9 @@ declare global {
     clearData?: () => void;
     __bizcarShow?: (id: string) => void;
     __bizcarState?: () => Record<string, unknown>;
+    __bizcarProgress?: number;
+    __vabixSession?: number;
+    __vabixStorageKey?: string;
+    __vabixOpenSession?: (index: number) => void;
   }
 }

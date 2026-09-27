@@ -38,6 +38,7 @@
     "node_modules",
     "source",
     "lib/discussion-access.check.ts",
-    "lib/password-gate.check.ts"
+    "lib/password-gate.check.ts",
+    "lib/vabix-applier.check.ts"
   ]
 }

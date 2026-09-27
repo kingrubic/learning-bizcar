@@ -76,6 +76,7 @@ export const learnState = query({
         has_report: row.hasReport,
         content_version: row.contentVersion,
         schema_version: row.schemaVersion,
+        storage_key: row.storageKey,
       }));
     const enrollment = enrolled && enrolled.courseId === course.legacyId ? enrolled : null;
     const cohort = enrollment
@@ -335,6 +336,7 @@ export const submissionsView = query({
           number: lesson?.number ?? 0,
           title: lesson?.title ?? "",
           framework: lesson?.framework ?? "",
+          storage_key: lesson?.storageKey ?? "",
           notes,
         };
       });
@@ -380,6 +382,7 @@ export const learnerDetail = query({
           number: lesson?.number ?? 0,
           title: lesson?.title ?? "",
           framework: lesson?.framework ?? "",
+          storage_key: lesson?.storageKey ?? "",
           answers_json: row.answersJson,
           status: row.status,
           progress_percent: row.progressPercent,

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { answersFor, learningState } from "@/lib/access";
 import { WORKBOOK, readPath } from "@/lib/course";
+import { isVabixCourse, vabixDisplay, vabixFields, VABIX_COURSE } from "@/lib/vabix-applier";
 import { canSee } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { getLocale } from "@/lib/locale";
@@ -16,17 +17,20 @@ export default async function WorkbookPage() {
   if (!(await canSee(user, "workbook"))) redirect("/learn/profile");
   const locale = await getLocale();
   const t = messages(locale);
-  const course = (await learningState(user.id)).course;
-  const lessons = (await learningState(user.id)).lessons;
+  const state = await learningState(user.id);
+  const course = state.course;
+  const lessons = state.lessons;
+  const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
   const answers = new Map((await answersFor(user.id)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
   return (
     <main className="page">
       <div className="eyebrow">{course.code}</div>
-      <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{t.workbook}</h1>
-      <p className="lede">{t.workbookLede}</p>
+      <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{vabix ? course.title : t.workbook}</h1>
+      <p className="lede">{vabix ? VABIX_COURSE.mapLede[locale] : t.workbookLede}</p>
       {lessons.map((lesson) => {
         const data = answers.get(lesson.id) ?? {};
-        const fields = WORKBOOK[lesson.number] ?? [];
+        const local = vabixDisplay(lesson.storage_key, lesson.number, locale);
+        const fields = local ? vabixFields(lesson.number) : (WORKBOOK[lesson.number] ?? []);
         const filled = fields.map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
         const code = String(lesson.number).padStart(2, "0");
         return (
@@ -34,7 +38,7 @@ export default async function WorkbookPage() {
             <div className="user-line">
               <div>
                 <div className="eyebrow">{t.lesson} {code} · {lesson.framework}</div>
-                <h2 className="serif" style={{ fontSize: 28 }}>{locale === "en" ? lessonEn[lesson.number]?.title ?? lesson.title : lesson.title}</h2>
+                <h2 className="serif" style={{ fontSize: 28 }}>{local?.title ?? (locale === "en" ? lessonEn[lesson.number]?.title ?? lesson.title : lesson.title)}</h2>
               </div>
               <Link className="btn" href={`/learn/course/${course.slug}/lesson/${code}`}>{t.reopen}</Link>
             </div>

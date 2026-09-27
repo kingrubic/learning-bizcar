@@ -1,6 +1,7 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
+import { VABIX_COURSE, VABIX_LESSONS } from "./vabixApplier";
 import { gate, nextId, now } from "./helpers";
 
 async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
@@ -368,6 +369,86 @@ export const addSessions28to30 = mutation({
       lessonIds: insertedLessons,
       cmsInserted,
       ledesUpdated,
+    };
+  },
+});
+
+/**
+ * Add the APPLIER course, its four lessons, and cohort "APPLIER · Cohort 01"
+ * when they are missing. Does not write BMDO lessons, cmsLessons, cmsBlocks, or map.lede.
+ *
+ *   npx convex run seed:addCourseVabixApplier '{"secret":"<APP_SECRET>"}'
+ */
+export const addCourseVabixApplier = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const orgs = await ctx.db.query("organizations").collect();
+    const org = orgs.find((row) => row.name === "VABIX") ?? orgs[0];
+    if (!org) throw new Error("CATALOG_MISSING");
+    const createdAt = now();
+    let course = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", VABIX_COURSE.slug)).unique();
+    let courseInserted = false;
+    if (!course) {
+      const courseId = await nextId(ctx, "courses");
+      await ctx.db.insert("courses", {
+        legacyId: courseId,
+        slug: VABIX_COURSE.slug,
+        code: VABIX_COURSE.code,
+        title: VABIX_COURSE.title,
+        tagline: VABIX_COURSE.tagline,
+      });
+      course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", courseId)).unique();
+      courseInserted = true;
+    }
+    if (!course) throw new Error("COURSE_INSERT_FAILED");
+    const courseRow = course;
+    const insertedLessons: number[] = [];
+    for (const spec of VABIX_LESSONS) {
+      const existing = await ctx.db
+        .query("lessons")
+        .withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId).eq("number", spec.number))
+        .unique();
+      if (existing) continue;
+      const lessonId = await nextId(ctx, "lessons");
+      await ctx.db.insert("lessons", {
+        legacyId: lessonId,
+        courseId: courseRow.legacyId,
+        number: spec.number,
+        title: spec.title,
+        framework: spec.framework,
+        summary: spec.summary,
+        groupName: spec.group,
+        hasReport: spec.hasReport ? 1 : 0,
+        storageKey: spec.storageKey,
+        contentVersion: spec.contentVersion,
+        schemaVersion: spec.schemaVersion,
+      });
+      insertedLessons.push(spec.number);
+    }
+    const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseRow.legacyId);
+    let cohortInserted = false;
+    let cohortId = cohorts[0]?.legacyId ?? 0;
+    if (!cohortId) {
+      cohortId = await nextId(ctx, "cohorts");
+      await ctx.db.insert("cohorts", {
+        legacyId: cohortId,
+        organizationId: org.legacyId,
+        courseId: courseRow.legacyId,
+        name: VABIX_COURSE.cohortName,
+        unlockMode: "all_open",
+        reviewEnabled: 1,
+        createdAt,
+      });
+      cohortInserted = true;
+    }
+    return {
+      ok: true,
+      courseId: courseRow.legacyId,
+      courseInserted,
+      lessonsInserted: insertedLessons,
+      cohortId,
+      cohortInserted,
     };
   },
 });

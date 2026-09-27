@@ -27,6 +27,9 @@ export function LessonExperience({
   locale,
   courseSlug,
   courseCode,
+  showPhases = true,
+  scopeClass,
+  showSample = true,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -42,6 +45,9 @@ export function LessonExperience({
   locale: Locale;
   courseSlug: string;
   courseCode: string;
+  showPhases?: boolean;
+  scopeClass?: string;
+  showSample?: boolean;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -83,7 +89,7 @@ export function LessonExperience({
           <span><strong>VABIX</strong><small>BizCar Learning</small></span>
         </Link>
         <p className="side-kicker">{lesson.code} · {lesson.framework}</p>
-        <nav className="phase-nav" aria-label={t.phaseNav}>
+        {showPhases && <nav className="phase-nav" aria-label={t.phaseNav}>
           {phases.map((item) => {
             const state = item.id === phase ? "current" : done.includes(item.id) ? "done" : "todo";
             return (
@@ -94,7 +100,7 @@ export function LessonExperience({
               </button>
             );
           })}
-        </nav>
+        </nav>}
         <div className="side-progress">
           <div className="p-label"><span>{t.progress}</span><b>{progress}%</b></div>
           <div className="p-track"><div style={{ width: `${progress}%` }} /></div>
@@ -118,7 +124,7 @@ export function LessonExperience({
             <button type="button" className="btn menu-btn" onClick={() => setMenu(true)} aria-label={t.openNav}>☰</button>
             <Link href={`/learn/course/${courseSlug}`}>{courseCode}</Link>
             <span>/</span>
-            <b>{t.lesson} {lesson.code} · {t.phases[phase]}</b>
+            <b>{showPhases ? `${t.lesson} ${lesson.code} · ${t.phases[phase]}` : `${t.lesson} ${lesson.code} · ${lesson.title}`}</b>
           </div>
           <div className="top-meta">
             <span className={`save-pill ${save}`}>{saveLabel}</span>
@@ -139,13 +145,13 @@ export function LessonExperience({
             <button type="button" className="btn" onClick={() => window.print()}>{t.print}</button>
           </div>
         </header>
-        <div className="phase-scroll" aria-label="Pha học tập">
+        {showPhases && <div className="phase-scroll" aria-label="Pha học tập">
           {phases.map((item) => (
             <button key={item.id} type="button" className={item.id === phase ? "on" : done.includes(item.id) ? "did" : ""} onClick={() => go(item.id)}>
               {t.phases[item.id]}
             </button>
           ))}
-        </div>
+        </div>}
         <div className="shell-content">
           <LessonStage
             lessonNumber={lesson.number}
@@ -160,6 +166,8 @@ export function LessonExperience({
             onPhase={(next, phasesDone, percent) => { setPhase(next); setDone(phasesDone); setProgress(percent); }}
             onSaveState={(state, at) => { setSave(state); if (at) setSavedAt(at); }}
             sampleLabel={t.sample}
+            scopeClass={scopeClass}
+            showSample={showSample}
           />
         </div>
       </div>

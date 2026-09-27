@@ -3,6 +3,7 @@ import { answersFor, isLessonUnlocked, learningState } from "@/lib/access";
 import { GROUPS, LESSONS } from "@/lib/course";
 import { messages, type Locale } from "@/lib/i18n";
 import { cmsLessons } from "@/lib/cms";
+import { vabixDisplay } from "@/lib/vabix-applier";
 
 export async function CourseMap({ userId, locale }: { userId: number; locale: Locale }) {
   const t = messages(locale);
@@ -14,7 +15,7 @@ export async function CourseMap({ userId, locale }: { userId: number; locale: Lo
   return (
     <div>
       {GROUPS.map((group) => {
-        const rows = lessons.filter((lesson) => lesson.group_name === group && copies.get(lesson.number)?.published !== 0);
+        const rows = lessons.filter((lesson) => lesson.group_name === group && (vabixDisplay(lesson.storage_key, lesson.number, locale) || copies.get(lesson.number)?.published !== 0));
         if (rows.length === 0) return null;
         return (
         <section className="group" key={group}>
@@ -25,7 +26,8 @@ export async function CourseMap({ userId, locale }: { userId: number; locale: Lo
               const status = answer?.status ?? "not_started";
               const unlocked = unlockedByNumber.get(lesson.number) ?? false;
               const meta = LESSONS.find((item) => item.number === lesson.number);
-              const copy = copies.get(lesson.number);
+              const local = vabixDisplay(lesson.storage_key, lesson.number, locale);
+              const copy = local ? undefined : copies.get(lesson.number);
               const code = String(lesson.number).padStart(2, "0");
               return (
                 <article className="card map-card" key={lesson.id}>
@@ -34,8 +36,8 @@ export async function CourseMap({ userId, locale }: { userId: number; locale: Lo
                     <span className={`badge st-${status}`}><i /> {t.status[status as keyof typeof t.status] ?? status}</span>
                   </div>
                   <strong>{lesson.framework}</strong>
-                  <h3 className="serif" style={{ fontSize: 26, margin: 0 }}>{locale === "en" ? copy?.title_en ?? lesson.title : copy?.title_vi ?? lesson.title}</h3>
-                  <p className="muted" style={{ flex: 1 }}>{locale === "en" ? copy?.summary_en ?? meta?.summary : copy?.summary_vi ?? meta?.summary}</p>
+                  <h3 className="serif" style={{ fontSize: 26, margin: 0 }}>{local?.title ?? (locale === "en" ? copy?.title_en ?? lesson.title : copy?.title_vi ?? lesson.title)}</h3>
+                  <p className="muted" style={{ flex: 1 }}>{local?.summary ?? (locale === "en" ? copy?.summary_en ?? meta?.summary : copy?.summary_vi ?? meta?.summary)}</p>
                   <div className="p-track" style={{ background: "var(--soft)" }}><div style={{ width: `${answer?.progress_percent ?? 0}%`, background: "var(--gold)" }} /></div>
                   {unlocked ? <Link className="btn dark" href={`/learn/course/${course.slug}/lesson/${code}`}>{status === "not_started" ? t.openLesson : t.resume}</Link> : <span className="muted">{t.locked}</span>}
                 </article>

@@ -7,6 +7,7 @@ import { CourseMap } from "@/components/learning/CourseMap";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 import { cmsAnnouncements, cmsBlock, cmsLesson } from "@/lib/cms";
+import { isVabixCourse, VABIX_COURSE, vabixDisplay } from "@/lib/vabix-applier";
 
 export default async function DashboardPage() {
   const user = await getSession();
@@ -25,15 +26,18 @@ export default async function DashboardPage() {
   const t = messages(locale);
   const hour = new Date().getHours();
   const greet = hour < 11 ? t.greeting.morning : hour < 18 ? t.greeting.afternoon : t.greeting.evening;
-  const continueCopy = continueLesson ? await cmsLesson(continueLesson.number) : undefined;
-  const recentCopy = recentLesson ? await cmsLesson(recentLesson.number) : undefined;
+  const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
+  const continueCopy = continueLesson && !vabix ? await cmsLesson(continueLesson.number) : undefined;
+  const recentCopy = recentLesson && !vabix ? await cmsLesson(recentLesson.number) : undefined;
+  const continueLocal = continueLesson ? vabixDisplay(continueLesson.storage_key, continueLesson.number, locale) : null;
+  const recentLocal = recentLesson ? vabixDisplay(recentLesson.storage_key, recentLesson.number, locale) : null;
   const notices = await cmsAnnouncements(locale);
 
   return (
     <main className="page">
       <div className="eyebrow">{course.code} · {t.executive}</div>
       <h1 className="serif display">{greet}, {user.displayName.split(" ").slice(-1)}</h1>
-      <p className="lede">{await cmsBlock("dashboard.lede", locale, t.lede)}</p>
+      <p className="lede">{vabix ? VABIX_COURSE.mapLede[locale] : await cmsBlock("dashboard.lede", locale, t.lede)}</p>
       {notices.map((item) => (
         <p className="notice" key={item.id}><strong>{item.title}</strong><span>{item.body}</span></p>
       ))}
@@ -55,13 +59,13 @@ export default async function DashboardPage() {
         <article className="card">
           <div className="eyebrow">{t.continue}</div>
           <h2 className="serif" style={{ fontSize: 32 }}>{continueLesson ? `${t.lesson} ${String(continueLesson.number).padStart(2, "0")} · ${continueLesson.framework}` : "BizCar"}</h2>
-          <p className="muted">{(locale === "en" ? continueCopy?.summary_en : continueCopy?.summary_vi) ?? continueLesson?.summary}</p>
+          <p className="muted">{continueLocal?.summary ?? (locale === "en" ? continueCopy?.summary_en : continueCopy?.summary_vi) ?? continueLesson?.summary}</p>
           <p>{progress.completed}/{progress.total} {t.doneOf} · {progress.percent}%</p>
           {continueLesson && <Link className="btn gold" href={`/learn/course/${course.slug}/lesson/${String(continueLesson.number).padStart(2, "0")}`}>{t.continueDesign}</Link>}
         </article>
         <article className="card">
           <div className="eyebrow">{t.recent}</div>
-          <h3>{recentLesson ? (locale === "en" ? recentCopy?.title_en ?? recentLesson.title : recentCopy?.title_vi ?? recentLesson.title) : t.noneOpened}</h3>
+          <h3>{recentLesson ? (recentLocal?.title ?? (locale === "en" ? recentCopy?.title_en ?? recentLesson.title : recentCopy?.title_vi ?? recentLesson.title)) : t.noneOpened}</h3>
           <p className="muted">{recent ? new Date(recent.updated_at + "Z").toLocaleString(locale === "en" ? "en-GB" : "vi-VN") : t.noSaved}</p>
           <div className="row-actions">
             <Link className="btn" href="/learn/workbook">{t.workbook}</Link>
