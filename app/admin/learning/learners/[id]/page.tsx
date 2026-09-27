@@ -3,6 +3,7 @@ import { api, q } from "@/lib/convex";
 import { getSession } from "@/lib/auth";
 import { canCoachSee, enrollmentFor } from "@/lib/access";
 import { WORKBOOK, readPath } from "@/lib/course";
+import { isVabixStorageKey, vabixFields } from "@/lib/vabix-applier";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 
@@ -33,7 +34,7 @@ export default async function LearnerDetail({ params }: { params: Promise<{ id: 
       <ul>{logs.map((log) => <li key={log.created_at + log.action}>{log.created_at} · {log.action} {log.detail ?? ""}</li>)}</ul>
       {answers.map((answer) => {
         const data = JSON.parse(answer.answers_json) as unknown;
-        const fields = (WORKBOOK[answer.number] ?? []).map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
+        const fields = (isVabixStorageKey(answer.storage_key) ? vabixFields(answer.number) : (WORKBOOK[answer.number] ?? [])).map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
         return (
           <section className="card" key={answer.number} style={{ marginTop: 12 }}>
             <h3>Buổi {String(answer.number).padStart(2, "0")} · {answer.framework} · {answer.status} · {answer.progress_percent}% · {answer.current_phase}</h3>

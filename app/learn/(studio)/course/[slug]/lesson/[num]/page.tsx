@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { answerFor, enrollmentFor, isLessonUnlocked, learningState } from "@/lib/access";
-import { lessonByNumber } from "@/lib/course";
+import { lessonByNumber, type LessonMeta } from "@/lib/course";
 import { loadLessonSource } from "@/lib/lesson-source";
+import { isVabixCourse, vabixLesson } from "@/lib/vabix-applier";
 import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
 import { getLocale } from "@/lib/locale";
@@ -11,8 +12,7 @@ import { lessonPublished } from "@/lib/cms";
 export default async function LessonPage({ params }: { params: Promise<{ slug: string; num: string }> }) {
   const { slug, num } = await params;
   const number = Number(num);
-  const meta = lessonByNumber(number);
-  if (!meta) notFound();
+  if (!Number.isInteger(number) || number < 1) notFound();
   const user = await getSession();
   if (!user) redirect("/learn/login");
   if (!(await canSee(user, "map"))) redirect("/learn/profile");
@@ -20,12 +20,18 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   if (!enrollment || enrollment.member_role !== "learner") redirect("/learn/dashboard");
   const state = await learningState(user.id);
   if (slug !== state.course.slug) notFound();
-  if (!(await lessonPublished(number)) || !(await isLessonUnlocked(user.id, number))) redirect(`/learn/course/${state.course.slug}`);
   const rows = state.lessons;
   const row = rows.find((item) => item.number === number);
   if (!row) notFound();
+  const vabix = isVabixCourse(slug, row.storage_key);
+  const meta = vabix ? vabixLesson(number) : lessonByNumber(number);
+  if (!meta) notFound();
+  if ((!vabix && !(await lessonPublished(number))) || !(await isLessonUnlocked(user.id, number))) redirect(`/learn/course/${state.course.slug}`);
+  const lesson: LessonMeta = vabix
+    ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
+    : meta;
   const saved = await answerFor(user.id, row.id);
-  const source = loadLessonSource(number);
+  const source = loadLessonSource(number, { slug, storageKey: row.storage_key });
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
   const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
   const lessonNav = await Promise.all(rows.map(async (item) => ({
@@ -38,7 +44,10 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   })));
   return (
     <LessonExperience
-      lesson={meta}
+      lesson={lesson}
+      scopeClass={source.scopeClass}
+      showSample={source.showSample}
+      showPhases={source.showPhases}
       lessons={lessonNav}
       source={{ css: source.css, html: source.html, script: source.script }}
       initialAnswers={answers}

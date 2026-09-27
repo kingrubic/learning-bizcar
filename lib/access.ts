@@ -2,7 +2,6 @@ import { cache } from "react";
 import { api, q } from "./convex";
 import { type LessonStatus, type UnlockMode } from "./db";
 import type { SessionUser } from "./auth";
-import { LESSONS } from "./course";
 
 export type AnswerRow = {
   id: number;
@@ -145,8 +144,6 @@ export async function submitLesson(userId: number, lessonNumber: number) {
   if (!enrollment?.review_enabled) throw new Error("REVIEW_OFF");
   const lesson = state.lessons.find((item) => item.number === lessonNumber);
   if (!lesson) throw new Error("NOT_FOUND");
-  const meta = LESSONS.find((item) => item.number === lessonNumber);
-  if (!meta) throw new Error("NOT_FOUND");
   const existing = state.answers.find((item) => item.lesson_id === lesson.id);
   if (!existing) throw new Error("EMPTY");
   return q((convex, secret) => convex.mutation(api.writes.submitLesson, {
@@ -154,8 +151,8 @@ export async function submitLesson(userId: number, lessonNumber: number) {
     userId,
     lessonId: lesson.id,
     cohortId: enrollment.cohort_id,
-    schemaVersion: meta.schemaVersion,
-    contentVersion: meta.contentVersion,
+    schemaVersion: lesson.schema_version,
+    contentVersion: lesson.content_version,
     answersJson: existing.answers_json,
     phase: existing.current_phase,
     progressPercent: existing.progress_percent,

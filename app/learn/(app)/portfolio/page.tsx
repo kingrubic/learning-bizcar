@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { answersFor, learningState } from "@/lib/access";
 import { PORTFOLIO, readPath } from "@/lib/course";
+import { isVabixCourse, vabixFields } from "@/lib/vabix-applier";
 import { PrintButton } from "@/components/learning/PrintButton";
 import { canSee } from "@/lib/permissions";
 import { redirect } from "next/navigation";
@@ -14,19 +15,23 @@ export default async function PortfolioPage() {
   if (!user) return null;
   if (!(await canSee(user, "portfolio"))) redirect("/learn/profile");
   const t = messages(await getLocale());
-  const course = (await learningState(user.id)).course;
-  const lessons = (await learningState(user.id)).lessons;
+  const state = await learningState(user.id);
+  const course = state.course;
+  const lessons = state.lessons;
+  const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
   const answers = new Map((await answersFor(user.id)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
   return (
     <main className="page portfolio">
       <div className="no-print" style={{ textAlign: "right" }}><PrintButton label={t.print} /></div>
       <header>
         <div className="eyebrow">VABIX · {course.code}</div>
-        <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 58px)", marginBottom: 0 }}>My BizCar</h1>
+        <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 58px)", marginBottom: 0 }}>{vabix ? course.title : "My BizCar"}</h1>
         <p className="lede">{t.portfolioLede} {user.displayName}.</p>
       </header>
       {lessons.map((lesson) => {
-        const block = PORTFOLIO[lesson.number];
+        const block = vabix
+          ? { heading: `${lesson.title} · ${lesson.framework}`, paths: vabixFields(lesson.number) }
+          : PORTFOLIO[lesson.number];
         const data = answers.get(lesson.id) ?? {};
         return (
           <section className="card" key={lesson.id}>

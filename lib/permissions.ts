@@ -54,15 +54,16 @@ function withMenu(menus: MenuItem[], key: string) {
 }
 
 export async function menusFor(user: SessionUser) {
+  const state = await learningState(user.id);
+  const withMap = (menus: MenuItem[]) => menus.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item);
   if (user.role === "admin" || user.role === "mod") {
     const base = user.role === "admin" ? MENUS : MENUS.filter((item) => !item.adminOnly);
-    return withMenu(withMenu(base, "discussion"), "admin-discussion");
+    return withMap(withMenu(withMenu(base, "discussion"), "admin-discussion"));
   }
   const menus = await learnerMenus(user);
-  const state = await learningState(user.id);
   const learnAccess = menus.some((item) => item.area === "learn") || Boolean(state.enrollment);
   const next = learnAccess ? withMenu(menus, "discussion") : menus;
-  return next.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item);
+  return withMap(next);
 }
 
 async function learnerMenus(user: SessionUser) {

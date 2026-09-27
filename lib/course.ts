@@ -34,7 +34,7 @@ export type LessonMeta = {
   title: string;
   framework: string;
   summary: string;
-  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION" | "CHASSIS" | "BRAND SHELL" | "ENVIRONMENT" | "FUEL" | "OIL" | "STEERING" | "AI-FIRST" | "WORKFORCE" | "MASTER TEST";
+  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION" | "CHASSIS" | "BRAND SHELL" | "ENVIRONMENT" | "FUEL" | "OIL" | "STEERING" | "AI-FIRST" | "WORKFORCE" | "MASTER TEST" | "APPLIER";
   hasReport: boolean;
   storageKey: string;
   schemaVersion: string;
@@ -74,7 +74,7 @@ export const LESSONS: LessonMeta[] = [
   { number: 30, code: "30", title: "Master System Test / MST", framework: "MST", summary: "Master System Test. MDS, CFS và MST kiểm định 12 cấu phần MyBizCar, tìm First Constraint và khóa can thiệp 90 ngày, không dùng điểm trung bình để che điểm gãy.", group: "MASTER TEST", hasReport: false, storageKey: "bmdo_k03_buoi30_master_system_test_v1", schemaVersion: "1", contentVersion: "2026.09" },
 ];
 
-export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION", "CHASSIS", "BRAND SHELL", "ENVIRONMENT", "FUEL", "OIL", "STEERING", "AI-FIRST", "WORKFORCE", "MASTER TEST"] as const;
+export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION", "CHASSIS", "BRAND SHELL", "ENVIRONMENT", "FUEL", "OIL", "STEERING", "AI-FIRST", "WORKFORCE", "MASTER TEST", "APPLIER"] as const;
 
 export function lessonByNumber(n: number) {
   return LESSONS.find((l) => l.number === n);
