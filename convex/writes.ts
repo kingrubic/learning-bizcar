@@ -359,7 +359,7 @@ export const saveCohort = mutation({
     const allowed = new Set(catalog.map((row) => row.legacyId));
     const picked = args.lessonIds.filter((id) => allowed.has(id));
     const lessonIds = catalog.filter((row) => picked.includes(row.legacyId)).map((row) => row.legacyId);
-    if (lessonIds.length === 0) return { error: "Chọn ít nhất một buổi của khoá." as const };
+    if (lessonIds.length === 0) return { error: "Chọn ít nhất một buổi học từ bài học của khoá." as const };
     const requested = cleanCode(args.code || "");
     const code = requested || await nextClassCode(ctx, course.code, course.legacyId);
     if (!code) return { error: "Không tạo được mã lớp." as const };
@@ -520,7 +520,7 @@ export const addCourseLesson = mutation({
   handler: async (ctx, args) => {
     gate(args.secret);
     const title = args.title.trim();
-    if (!title) return { error: "Thiếu tên buổi." as const };
+    if (!title) return { error: "Thiếu tên bài học." as const };
     const course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.courseId)).unique();
     if (!course) return { error: "Khoá không tồn tại." as const };
     const existing = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", course.legacyId)).collect();
@@ -532,7 +532,7 @@ export const addCourseLesson = mutation({
       courseId: course.legacyId,
       number,
       title,
-      framework: args.framework.trim() || "Buổi học",
+      framework: args.framework.trim() || "Bài học",
       summary: args.summary.trim(),
       groupName: args.groupName.trim() || "CATALOG",
       hasReport: 0,
@@ -561,9 +561,9 @@ export const updateCourseLesson = mutation({
   handler: async (ctx, args) => {
     gate(args.secret);
     const lesson = await ctx.db.query("lessons").withIndex("by_legacy", (q) => q.eq("legacyId", args.lessonId)).unique();
-    if (!lesson) return { error: "Buổi không tồn tại." as const };
+    if (!lesson) return { error: "Bài học không tồn tại." as const };
     const title = args.title.trim();
-    if (!title) return { error: "Thiếu tên buổi." as const };
+    if (!title) return { error: "Thiếu tên bài học." as const };
     await ctx.db.patch(lesson._id, {
       title,
       framework: args.framework.trim() || lesson.framework,
@@ -582,7 +582,7 @@ export const moveCourseLesson = mutation({
   handler: async (ctx, args) => {
     gate(args.secret);
     const lesson = await ctx.db.query("lessons").withIndex("by_legacy", (q) => q.eq("legacyId", args.lessonId)).unique();
-    if (!lesson) return { error: "Buổi không tồn tại." as const };
+    if (!lesson) return { error: "Bài học không tồn tại." as const };
     const rows = (await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", lesson.courseId)).collect())
       .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number);
     const index = rows.findIndex((row) => row.legacyId === lesson.legacyId);

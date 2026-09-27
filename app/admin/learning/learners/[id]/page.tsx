@@ -46,7 +46,7 @@ export default async function LearnerDetail({ params, searchParams }: { params: 
         const fields = (isVabixStorageKey(answer.storage_key) ? vabixFields(answer.number) : (WORKBOOK[answer.number] ?? [])).map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
         return (
           <section className="card" key={answer.number} style={{ marginTop: 12 }}>
-            <h3>Buổi {String(answer.number).padStart(2, "0")} · {answer.framework} · {answer.status} · {answer.progress_percent}% · {answer.current_phase}</h3>
+            <h3>Bài học {String(answer.number).padStart(2, "0")} · {answer.framework} · {answer.status} · {answer.progress_percent}% · {answer.current_phase}</h3>
             <p className="muted">Cập nhật {answer.updated_at}</p>
             {fields.map((field) => <p key={field.path}><strong>{field.label}.</strong> {field.value}</p>)}
           </section>

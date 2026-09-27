@@ -132,7 +132,7 @@ export async function saveCohort(formData: FormData) {
   const cohortId = Number.isInteger(cohortRaw) && cohortRaw > 0 ? cohortRaw : undefined;
   if (!name || !courseId) redirect("/admin/learning/cohorts?error=Thiếu tên lớp hoặc khoá.");
   if (!Number.isInteger(instructorId) || instructorId <= 0) redirect("/admin/learning/cohorts?error=Chọn một giảng viên.");
-  if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") redirect("/admin/learning/cohorts?error=Cách mở bài không hợp lệ.");
+  if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") redirect("/admin/learning/cohorts?error=Cách mở buổi không hợp lệ.");
   const created = await q((convex, secret) => convex.mutation(api.writes.saveCohort, {
     secret,
     actorId: user.id,
@@ -153,6 +153,22 @@ export async function saveCohort(formData: FormData) {
   redirect("/admin/learning/cohorts");
 }
 
+function courseIdFrom(formData: FormData) {
+  const id = Number(formData.get("courseId") || 0);
+  return Number.isInteger(id) && id > 0 ? id : 0;
+}
+
+function courseReturn(courseId: number, error?: string): never {
+  const path = courseId > 0 ? `/admin/learning/courses/${courseId}` : "/admin/learning/courses";
+  redirect(error ? `${path}?error=${encodeURIComponent(error)}` : path);
+}
+
+function refreshCourse(courseId: number) {
+  revalidatePath("/admin/learning/courses");
+  if (courseId > 0) revalidatePath(`/admin/learning/courses/${courseId}`);
+  revalidatePath("/admin/learning/cohorts");
+}
+
 export async function saveCourse(formData: FormData) {
   const user = await actor(true);
   const code = String(formData.get("code") || "").trim();
@@ -160,9 +176,8 @@ export async function saveCourse(formData: FormData) {
   const tagline = String(formData.get("tagline") || "").trim();
   const intro = String(formData.get("intro") || "").trim();
   const managementCode = String(formData.get("managementCode") || "").trim();
-  const courseRaw = Number(formData.get("courseId") || 0);
-  const courseId = Number.isInteger(courseRaw) && courseRaw > 0 ? courseRaw : undefined;
-  if (!code || !title) redirect("/admin/learning/courses?error=Thiếu mã hoặc tên khoá.");
+  const courseId = courseIdFrom(formData);
+  if (!code || !title) courseReturn(courseId, "Thiếu mã hoặc tên khoá.");
   const saved = await q((convex, secret) => convex.mutation(api.writes.saveCourse, {
     secret,
     actorId: user.id,
@@ -173,15 +188,15 @@ export async function saveCourse(formData: FormData) {
     intro,
     managementCode,
   }));
-  if ("error" in saved && saved.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(saved.error)}`);
-  revalidatePath("/admin/learning/courses");
-  revalidatePath("/admin/learning/cohorts");
-  redirect("/admin/learning/courses");
+  if ("error" in saved && saved.error) courseReturn(courseId, saved.error);
+  const id = "id" in saved ? saved.id : courseId;
+  refreshCourse(id);
+  courseReturn(id);
 }
 
 export async function addCourseLesson(formData: FormData) {
   const user = await actor(true);
-  const courseId = Number(formData.get("courseId"));
+  const courseId = courseIdFrom(formData);
   const saved = await q((convex, secret) => convex.mutation(api.writes.addCourseLesson, {
     secret,
     actorId: user.id,
@@ -191,14 +206,14 @@ export async function addCourseLesson(formData: FormData) {
     summary: String(formData.get("summary") || ""),
     groupName: String(formData.get("groupName") || ""),
   }));
-  if ("error" in saved && saved.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(saved.error)}`);
-  revalidatePath("/admin/learning/courses");
-  revalidatePath("/admin/learning/cohorts");
-  redirect("/admin/learning/courses");
+  if ("error" in saved && saved.error) courseReturn(courseId, saved.error);
+  refreshCourse(courseId);
+  courseReturn(courseId);
 }
 
 export async function updateCourseLesson(formData: FormData) {
   const user = await actor(true);
+  const courseId = courseIdFrom(formData);
   const saved = await q((convex, secret) => convex.mutation(api.writes.updateCourseLesson, {
     secret,
     actorId: user.id,
@@ -209,23 +224,24 @@ export async function updateCourseLesson(formData: FormData) {
     groupName: String(formData.get("groupName") || ""),
     archived: formData.get("archived") === "on",
   }));
-  if ("error" in saved && saved.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(saved.error)}`);
-  revalidatePath("/admin/learning/courses");
-  revalidatePath("/admin/learning/cohorts");
-  redirect("/admin/learning/courses");
+  if ("error" in saved && saved.error) courseReturn(courseId, saved.error);
+  refreshCourse(courseId);
+  courseReturn(courseId);
 }
 
 export async function moveCourseLesson(formData: FormData) {
   const user = await actor(true);
+  const courseId = courseIdFrom(formData);
   const direction = String(formData.get("direction")) === "up" ? "up" : "down";
-  await q((convex, secret) => convex.mutation(api.writes.moveCourseLesson, {
+  const saved = await q((convex, secret) => convex.mutation(api.writes.moveCourseLesson, {
     secret,
     actorId: user.id,
     lessonId: Number(formData.get("lessonId")),
     direction,
   }));
-  revalidatePath("/admin/learning/courses");
-  redirect("/admin/learning/courses");
+  if (saved && "error" in saved && saved.error) courseReturn(courseId, saved.error);
+  refreshCourse(courseId);
+  courseReturn(courseId);
 }
 
 export async function enrollLearner(formData: FormData) {
@@ -284,9 +300,9 @@ export async function cloneCourse(formData: FormData) {
   if (!code || !title || !sourceCourseId) redirect("/admin/learning/courses?error=Thiếu mã, tên hoặc khoá nguồn.");
   const created = await q((convex, secret) => convex.mutation(api.writes.cloneCourse, { secret, actorId: user.id, sourceCourseId, code, title, tagline }));
   if ("error" in created && created.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(created.error)}`);
-  revalidatePath("/admin/learning/courses");
-  revalidatePath("/admin/learning/cohorts");
-  redirect("/admin/learning/courses");
+  const id = "id" in created ? created.id : 0;
+  refreshCourse(id);
+  courseReturn(id);
 }
 
 export async function setUnlockMode(cohortId: number, mode: string) {

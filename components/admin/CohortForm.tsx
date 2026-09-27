@@ -68,16 +68,17 @@ export function CohortForm({
         <input id={`instructor-code-${defaults?.id ?? "new"}`} name="instructorCode" placeholder={instructor?.management_code || "Để trống để tạo GV-…"} />
       </div>
       <div className="field">
-        <label htmlFor={`mode-${defaults?.id ?? "new"}`}>Cách mở bài</label>
+        <label htmlFor={`mode-${defaults?.id ?? "new"}`}>Cách mở buổi</label>
         <select id={`mode-${defaults?.id ?? "new"}`} name="mode" defaultValue={defaults?.unlock_mode ?? "sequential"}>
-          <option value="all_open">Mở tất cả</option>
+          <option value="all_open">Mở tất cả buổi</option>
           <option value="sequential">Tuần tự — xong buổi trước mới mở buổi sau</option>
-          <option value="scheduled">Theo lịch</option>
+          <option value="scheduled">Theo lịch — mở buổi theo thời điểm đã đặt</option>
         </select>
       </div>
       <fieldset className="field">
-        <legend>Buổi trong lớp</legend>
-        <p className="muted">Chọn tập con danh mục của khoá. Nội dung buổi vẫn nằm ở khoá, không sao chép.</p>
+        <legend>Buổi học</legend>
+        <p className="muted">Chọn buổi từ bài học của khoá. Mỗi buổi trỏ tới một bài học của khoá (không sao chép nội dung) và dùng lịch mở của lớp.</p>
+        {catalog.length === 0 && <p className="muted">Khoá này chưa có bài học.</p>}
         {catalog.map((lesson) => (
           <label key={lesson.id} style={{ display: "block", marginTop: 6 }}>
             <input
@@ -87,7 +88,7 @@ export function CohortForm({
               checked={checked.includes(lesson.id)}
               onChange={(event) => setChecked((current) => event.target.checked ? [...current, lesson.id] : current.filter((id) => id !== lesson.id))}
             />
-            {" "}{String(lesson.number).padStart(2, "0")} · {lesson.title}{lesson.archived === 1 ? " · lưu trữ" : ""}
+            {" "}Bài {String(lesson.number).padStart(2, "0")} · {lesson.title}{lesson.archived === 1 ? " · lưu trữ" : ""}
           </label>
         ))}
       </fieldset>

@@ -8,9 +8,10 @@ export default async function ProgressPage() {
   return (
     <main>
       <h1 className="serif">Tiến độ bài học</h1>
+      <p className="muted">Mỗi dòng là một bài học học viên đã làm trong buổi của lớp, không phải toàn bộ danh mục khoá.</p>
       <div className="table-wrap card" style={{ padding: 0 }}>
         <table>
-          <thead><tr><th>Học viên</th><th>Bài</th><th>Pha</th><th>Tiến độ</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+          <thead><tr><th>Học viên</th><th>Bài học</th><th>Pha</th><th>Tiến độ</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
           <tbody>
             {rows.filter((row) => row.number).map((row) => (
               <tr key={`${row.id}-${row.course_code}-${row.number}`}>

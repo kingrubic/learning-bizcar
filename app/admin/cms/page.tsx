@@ -22,7 +22,7 @@ export default async function CmsPage() {
     <main>
       <div className="eyebrow">CMS</div>
       <h1 className="serif">Nội dung hệ thống</h1>
-      <p className="lede">Sửa chữ hai ngôn ngữ, đăng thông báo, và chỉnh tên từng buổi. Học viên thấy bản đã lưu ngay sau khi bấm lưu.</p>
+      <p className="lede">Sửa chữ hai ngôn ngữ, đăng thông báo, và chỉnh tên từng bài học. Học viên thấy bản đã lưu ngay sau khi bấm lưu.</p>
 
       <section className="card" style={{ marginTop: 18 }}>
         <h2 className="serif">Trang</h2>
@@ -65,12 +65,12 @@ export default async function CmsPage() {
       </section>
 
       <section style={{ marginTop: 18 }}>
-        <h2 className="serif">Buổi học</h2>
+        <h2 className="serif">Bài học</h2>
         {lessons.map((lesson) => (
           <form key={lesson.number} action={saveCmsLesson} className="card" style={{ marginTop: 12 }}>
             <input type="hidden" name="number" value={lesson.number} />
             <div className="user-line">
-              <h3 className="serif" style={{ margin: 0 }}>Buổi {String(lesson.number).padStart(2, "0")}</h3>
+              <h3 className="serif" style={{ margin: 0 }}>Bài học {String(lesson.number).padStart(2, "0")}</h3>
               <label className="muted"><input type="checkbox" name="published" defaultChecked={lesson.published === 1} /> Hiện trên bản đồ</label>
             </div>
             <div className="grid-2">
@@ -79,7 +79,7 @@ export default async function CmsPage() {
               <div className="field"><label>Tóm tắt tiếng Việt</label><textarea name="summaryVi" defaultValue={lesson.summary_vi} rows={2} /></div>
               <div className="field"><label>English summary</label><textarea name="summaryEn" defaultValue={lesson.summary_en} rows={2} /></div>
             </div>
-            <button className="btn dark" type="submit">Lưu buổi</button>
+            <button className="btn dark" type="submit">Lưu bài học</button>
           </form>
         ))}
       </section>
