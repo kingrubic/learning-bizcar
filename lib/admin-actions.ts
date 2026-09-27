@@ -45,6 +45,7 @@ export async function createLearner(_prev: CreateLearnerState, formData: FormDat
     revalidatePath("/admin/learning/learners");
     revalidatePath("/admin/learning");
     revalidatePath("/admin/learning/cohorts");
+    if (Number.isInteger(cohortId) && cohortId > 0) revalidatePath(`/admin/learning/cohorts/${cohortId}`);
     revalidatePath("/admin/organization/users");
     return { username, temporaryPassword: temp };
   } catch (error) {
@@ -53,7 +54,8 @@ export async function createLearner(_prev: CreateLearnerState, formData: FormDat
 }
 
 function adminReturnPath(value: string) {
-  if (value === "/admin/learning/cohorts") return value;
+  if (value === "/admin/learning" || value === "/admin/learning/cohorts") return value;
+  if (/^\/admin\/learning\/cohorts\/[1-9]\d*$/.test(value)) return value;
   return "/admin/learning";
 }
 
@@ -76,6 +78,7 @@ export async function enrollSelf(formData: FormData) {
   }));
   revalidatePath("/admin/learning");
   revalidatePath("/admin/learning/cohorts");
+  if (/^\/admin\/learning\/cohorts\/[1-9]\d*$/.test(next)) revalidatePath(next);
   revalidatePath("/admin/learning/learners");
   revalidatePath("/learn/dashboard");
   revalidatePath("/learn/profile");
@@ -142,10 +145,10 @@ export async function saveCohort(formData: FormData) {
   const cohortRaw = Number(formData.get("cohortId") || 0);
   const cohortId = Number.isInteger(cohortRaw) && cohortRaw > 0 ? cohortRaw : undefined;
   const sessions = sessionsFrom(formData);
-  if (!name || !courseId) redirect("/admin/learning/cohorts?error=Thiếu tên lớp hoặc khoá.");
-  if (!Number.isInteger(instructorId) || instructorId <= 0) redirect("/admin/learning/cohorts?error=Chọn một giảng viên.");
-  if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") redirect("/admin/learning/cohorts?error=Cách mở buổi không hợp lệ.");
-  if (!sessions) redirect("/admin/learning/cohorts?error=Danh sách buổi không hợp lệ.");
+  if (!name || !courseId) cohortReturn(cohortId, "Thiếu tên lớp hoặc khoá.", "new");
+  if (!Number.isInteger(instructorId) || instructorId <= 0) cohortReturn(cohortId, "Chọn một giảng viên.", "new");
+  if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") cohortReturn(cohortId, "Cách mở buổi không hợp lệ.", "new");
+  if (!sessions) cohortReturn(cohortId, "Danh sách buổi không hợp lệ.", "new");
   const created = await q((convex, secret) => convex.mutation(api.writes.saveCohort, {
     secret,
     actorId: user.id,
@@ -158,12 +161,28 @@ export async function saveCohort(formData: FormData) {
     sessions,
     instructorCode: String(formData.get("instructorCode") || ""),
   }));
-  if ("error" in created && created.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(created.error)}`);
+  if ("error" in created && created.error) cohortReturn(cohortId, created.error, "new");
+  const id = "id" in created ? created.id : cohortId;
+  refreshCohort(id);
+  cohortReturn(id, undefined, "new");
+}
+
+function cohortReturn(cohortId: number | undefined, error: string | undefined, fallback: "list" | "new"): never {
+  const id = cohortId && Number.isInteger(cohortId) && cohortId > 0 ? cohortId : 0;
+  const path = id > 0
+    ? `/admin/learning/cohorts/${id}`
+    : fallback === "new"
+      ? "/admin/learning/cohorts/new"
+      : "/admin/learning/cohorts";
+  redirect(error ? `${path}?error=${encodeURIComponent(error)}` : path);
+}
+
+function refreshCohort(cohortId?: number) {
   revalidatePath("/admin/learning/cohorts");
-  revalidatePath("/admin/learning");
+  if (cohortId && cohortId > 0) revalidatePath(`/admin/learning/cohorts/${cohortId}`);
   revalidatePath("/admin/learning/learners");
+  revalidatePath("/admin/learning");
   revalidatePath("/learn/dashboard");
-  redirect("/admin/learning/cohorts");
 }
 
 function courseIdFrom(formData: FormData) {
@@ -172,7 +191,11 @@ function courseIdFrom(formData: FormData) {
 }
 
 function courseReturn(courseId: number, error?: string): never {
-  const path = courseId > 0 ? `/admin/learning/courses/${courseId}` : "/admin/learning/courses";
+  const path = courseId > 0
+    ? `/admin/learning/courses/${courseId}`
+    : error
+      ? "/admin/learning/courses/new"
+      : "/admin/learning/courses";
   redirect(error ? `${path}?error=${encodeURIComponent(error)}` : path);
 }
 
@@ -265,12 +288,10 @@ export async function enrollLearner(formData: FormData) {
     userId: Number(formData.get("userId")),
     cohortId: Number(formData.get("cohortId")),
   }));
-  if ("error" in result && result.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(result.error)}`);
-  revalidatePath("/admin/learning/cohorts");
-  revalidatePath("/admin/learning/learners");
-  revalidatePath("/admin/learning");
-  revalidatePath("/learn/dashboard");
-  redirect("/admin/learning/cohorts");
+  const cohortId = Number(formData.get("cohortId"));
+  if ("error" in result && result.error) cohortReturn(cohortId, result.error, "list");
+  refreshCohort(cohortId);
+  cohortReturn(cohortId, undefined, "list");
 }
 
 export async function unenrollLearner(formData: FormData) {
@@ -281,12 +302,10 @@ export async function unenrollLearner(formData: FormData) {
     userId: Number(formData.get("userId")),
     cohortId: Number(formData.get("cohortId")),
   }));
-  if ("error" in result && result.error) redirect(`/admin/learning/cohorts?error=${encodeURIComponent(result.error)}`);
-  revalidatePath("/admin/learning/cohorts");
-  revalidatePath("/admin/learning/learners");
-  revalidatePath("/admin/learning");
-  revalidatePath("/learn/dashboard");
-  redirect("/admin/learning/cohorts");
+  const cohortId = Number(formData.get("cohortId"));
+  if ("error" in result && result.error) cohortReturn(cohortId, result.error, "list");
+  refreshCohort(cohortId);
+  cohortReturn(cohortId, undefined, "list");
 }
 
 export async function setManagementCode(formData: FormData) {
@@ -310,9 +329,9 @@ export async function cloneCourse(formData: FormData) {
   const title = String(formData.get("title") || "").trim();
   const tagline = String(formData.get("tagline") || "").trim();
   const sourceCourseId = Number(formData.get("sourceCourseId"));
-  if (!code || !title || !sourceCourseId) redirect("/admin/learning/courses?error=Thiếu mã, tên hoặc khoá nguồn.");
+  if (!code || !title || !sourceCourseId) redirect("/admin/learning/courses/new?error=Thiếu mã, tên hoặc khoá nguồn.");
   const created = await q((convex, secret) => convex.mutation(api.writes.cloneCourse, { secret, actorId: user.id, sourceCourseId, code, title, tagline }));
-  if ("error" in created && created.error) redirect(`/admin/learning/courses?error=${encodeURIComponent(created.error)}`);
+  if ("error" in created && created.error) redirect(`/admin/learning/courses/new?error=${encodeURIComponent(created.error)}`);
   const id = "id" in created ? created.id : 0;
   refreshCourse(id);
   courseReturn(id);
