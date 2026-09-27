@@ -1,9 +1,80 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode, slugFromCode } from "./codes";
 import { ensureClassChannel } from "./discussion";
 import { gate, nextId, now, passwordFlag } from "./helpers";
 
 const secret = { secret: v.string() };
+
+function cleanCode(value: string) {
+  return value.trim().toUpperCase().replace(/\s+/g, "-");
+}
+
+async function takenUserCode(ctx: MutationCtx, code: string, exceptUserId?: number) {
+  const rows = await ctx.db.query("users").withIndex("by_management_code", (q) => q.eq("managementCode", code)).collect();
+  return rows.some((row) => row.legacyId !== exceptUserId);
+}
+
+async function takenCourseCode(ctx: MutationCtx, code: string, exceptCourseId?: number) {
+  const rows = await ctx.db.query("courses").withIndex("by_management_code", (q) => q.eq("managementCode", code)).collect();
+  return rows.some((row) => row.legacyId !== exceptCourseId);
+}
+
+async function takenClassCode(ctx: MutationCtx, code: string, exceptCohortId?: number) {
+  const rows = await ctx.db.query("cohorts").withIndex("by_code", (q) => q.eq("code", code)).collect();
+  return rows.some((row) => row.legacyId !== exceptCohortId);
+}
+
+async function freshCourseCode(ctx: MutationCtx, preferred: string) {
+  const taken = new Set<string>();
+  let code = preferred;
+  for (let i = 0; i < 20 && code; i += 1) {
+    if (!(await takenCourseCode(ctx, code))) return code;
+    taken.add(code);
+    code = nextFreeCode(preferred, taken);
+  }
+  return "";
+}
+
+async function freshUserCode(ctx: MutationCtx, preferred: string) {
+  const taken = new Set<string>();
+  let code = preferred;
+  for (let i = 0; i < 20 && code; i += 1) {
+    if (!(await takenUserCode(ctx, code))) return code;
+    taken.add(code);
+    code = nextFreeCode(preferred, taken);
+  }
+  return preferred;
+}
+
+async function ensureUserCode(ctx: MutationCtx, userId: number, generated: string) {
+  const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", userId)).unique();
+  if (!user || user.managementCode) return;
+  const code = await freshUserCode(ctx, generated);
+  if (!code) return;
+  await ctx.db.patch(user._id, { managementCode: code, updatedAt: now() });
+}
+
+async function nextClassCode(ctx: MutationCtx, courseCode: string, courseId: number) {
+  const existing = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseId);
+  let seq = existing.length + 1;
+  for (let i = 0; i < 40; i += 1) {
+    const code = classManagementCode(courseCode, seq);
+    if (code && !(await takenClassCode(ctx, code))) return code;
+    seq += 1;
+  }
+  return "";
+}
+
+async function replaceClassLessons(ctx: MutationCtx, cohortId: number, lessonIds: number[]) {
+  const existing = await ctx.db.query("cohortLessons").withIndex("by_cohort", (q) => q.eq("cohortId", cohortId)).collect();
+  for (const row of existing) await ctx.db.delete(row._id);
+  let order = 0;
+  for (const lessonId of lessonIds) {
+    order += 1;
+    await ctx.db.insert("cohortLessons", { cohortId, lessonId, sortOrder: order });
+  }
+}
 
 async function log(ctx: Parameters<typeof nextId>[0], actorId: number | null, action: string, targetType?: string, targetId?: string, detail?: string) {
   const id = await nextId(ctx, "activityLogs");
@@ -121,6 +192,7 @@ export const createLearner = mutation({
       mustChangePassword: 1,
       createdAt: stamp,
       updatedAt: stamp,
+      managementCode: await freshUserCode(ctx, learnerManagementCode(userId)),
     });
     const enrollmentId = await nextId(ctx, "enrollments");
     await ctx.db.insert("enrollments", {
@@ -151,11 +223,6 @@ export const enrollSelf = mutation({
       .filter((row) => row.memberRole === "learner");
     const same = seats.find((row) => row.cohortId === cohort.legacyId);
     if (same) return { status: "already" as const, cohortId: cohort.legacyId, cohortName: cohort.name };
-    const other = seats[0];
-    if (other) {
-      const otherCohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", other.cohortId)).unique();
-      return { status: "other" as const, cohortId: other.cohortId, cohortName: otherCohort?.name ?? "" };
-    }
     const enrollmentId = await nextId(ctx, "enrollments");
     await ctx.db.insert("enrollments", {
       legacyId: enrollmentId,
@@ -264,13 +331,20 @@ export const wipeNonAdmins = mutation({
   },
 });
 
-export const createCohort = mutation({
+const unlockMode = v.union(v.literal("all_open"), v.literal("sequential"), v.literal("scheduled"));
+
+export const saveCohort = mutation({
   args: {
     ...secret,
     actorId: v.number(),
+    cohortId: v.optional(v.number()),
     name: v.string(),
     courseId: v.number(),
-    mode: v.union(v.literal("all_open"), v.literal("sequential"), v.literal("scheduled")),
+    mode: unlockMode,
+    code: v.optional(v.string()),
+    instructorId: v.number(),
+    lessonIds: v.array(v.number()),
+    instructorCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     gate(args.secret);
@@ -278,6 +352,42 @@ export const createCohort = mutation({
     if (!name) return { error: "Thiếu tên lớp." as const };
     const course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.courseId)).unique();
     if (!course) return { error: "Khoá không tồn tại." as const };
+    const instructor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.instructorId)).unique();
+    if (!instructor || instructor.active !== 1) return { error: "Chọn một giảng viên đang hoạt động." as const };
+    const catalog = (await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", course.legacyId)).collect())
+      .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number);
+    const allowed = new Set(catalog.map((row) => row.legacyId));
+    const picked = args.lessonIds.filter((id) => allowed.has(id));
+    const lessonIds = catalog.filter((row) => picked.includes(row.legacyId)).map((row) => row.legacyId);
+    if (lessonIds.length === 0) return { error: "Chọn ít nhất một buổi của khoá." as const };
+    const requested = cleanCode(args.code || "");
+    const code = requested || await nextClassCode(ctx, course.code, course.legacyId);
+    if (!code) return { error: "Không tạo được mã lớp." as const };
+    if (await takenClassCode(ctx, code, args.cohortId)) return { error: "Mã lớp đã được dùng." as const };
+    const instructorCode = cleanCode(args.instructorCode || "");
+    if (instructorCode) {
+      if (instructorCode.length > 40) return { error: "Mã giảng viên không hợp lệ." as const };
+      if (await takenUserCode(ctx, instructorCode, instructor.legacyId)) return { error: "Mã giảng viên đã được dùng." as const };
+      if (instructor.managementCode !== instructorCode) await ctx.db.patch(instructor._id, { managementCode: instructorCode, updatedAt: now() });
+    } else await ensureUserCode(ctx, instructor.legacyId, instructorManagementCode(instructor.legacyId));
+    const cohortId = args.cohortId;
+    if (cohortId) {
+      const cohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", cohortId)).unique();
+      if (!cohort) return { error: "Lớp không tồn tại." as const };
+      await ctx.db.patch(cohort._id, {
+        name,
+        courseId: course.legacyId,
+        unlockMode: args.mode,
+        code,
+        instructorId: instructor.legacyId,
+        lessonsScoped: 1,
+      });
+      await replaceClassLessons(ctx, cohort.legacyId, lessonIds);
+      const stale = (await ctx.db.query("lessonUnlocks").collect()).filter((row) => row.cohortId === cohort.legacyId && !lessonIds.includes(row.lessonId));
+      for (const row of stale) await ctx.db.delete(row._id);
+      await log(ctx, args.actorId, "cohort_update", "cohort", String(cohort.legacyId), name);
+      return { id: cohort.legacyId };
+    }
     const org = await ctx.db.query("organizations").withIndex("by_legacy").first();
     if (!org) return { error: "Chưa có tổ chức." as const };
     const id = await nextId(ctx, "cohorts");
@@ -289,7 +399,11 @@ export const createCohort = mutation({
       unlockMode: args.mode,
       reviewEnabled: 1,
       createdAt: now(),
+      code,
+      instructorId: instructor.legacyId,
+      lessonsScoped: 1,
     });
+    await replaceClassLessons(ctx, id, lessonIds);
     await ensureClassChannel(ctx, id, args.actorId);
     await log(ctx, args.actorId, "cohort_create", "cohort", String(id), name);
     return { id };
@@ -316,6 +430,8 @@ export const cloneCourse = mutation({
     if (taken) return { error: "Mã khoá đã tồn tại." as const };
     const source = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.sourceCourseId)).unique();
     if (!source) return { error: "Khoá nguồn không tồn tại." as const };
+    const managementCode = await freshCourseCode(ctx, courseManagementCode(code));
+    if (!managementCode) return { error: "Không tạo được mã khoá." as const };
     const courseId = await nextId(ctx, "courses");
     await ctx.db.insert("courses", {
       legacyId: courseId,
@@ -323,10 +439,12 @@ export const cloneCourse = mutation({
       code,
       title,
       tagline: args.tagline.trim() || source.tagline,
+      intro: source.intro ?? "",
+      managementCode,
     });
     const lessons = (await ctx.db.query("lessons").collect())
       .filter((row) => row.courseId === source.legacyId)
-      .sort((a, b) => a.number - b.number);
+      .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number);
     for (const lesson of lessons) {
       const lessonId = await nextId(ctx, "lessons");
       await ctx.db.insert("lessons", {
@@ -341,10 +459,203 @@ export const cloneCourse = mutation({
         storageKey: lesson.storageKey,
         contentVersion: lesson.contentVersion,
         schemaVersion: lesson.schemaVersion,
+        archived: lesson.archived === 1 ? 1 : 0,
+        sortOrder: lesson.sortOrder ?? lesson.number,
       });
     }
     await log(ctx, args.actorId, "course_clone", "course", String(courseId), `${source.code} → ${code}`);
     return { id: courseId, lessons: lessons.length };
+  },
+});
+
+export const saveCourse = mutation({
+  args: {
+    ...secret,
+    actorId: v.number(),
+    courseId: v.optional(v.number()),
+    code: v.string(),
+    title: v.string(),
+    tagline: v.string(),
+    intro: v.string(),
+    managementCode: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const code = args.code.trim();
+    const title = args.title.trim();
+    if (!code || !title) return { error: "Thiếu mã hoặc tên khoá." as const };
+    const requested = cleanCode(args.managementCode || "") || courseManagementCode(code);
+    if (!requested) return { error: "Không tạo được mã khoá." as const };
+    if (await takenCourseCode(ctx, requested, args.courseId)) return { error: "Mã khoá đã được dùng." as const };
+    const fields = { code, title, tagline: args.tagline.trim(), intro: args.intro.trim(), managementCode: requested };
+    const editingId = args.courseId;
+    if (editingId) {
+      const course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", editingId)).unique();
+      if (!course) return { error: "Khoá không tồn tại." as const };
+      await ctx.db.patch(course._id, fields);
+      await log(ctx, args.actorId, "course_update", "course", String(course.legacyId), code);
+      return { id: course.legacyId };
+    }
+    const slug = slugFromCode(code);
+    if (!slug) return { error: "Mã khoá không hợp lệ." as const };
+    const slugOwner = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", slug)).unique();
+    if (slugOwner) return { error: "Mã khoá đã tồn tại." as const };
+    const courseId = await nextId(ctx, "courses");
+    await ctx.db.insert("courses", { legacyId: courseId, slug, ...fields });
+    await log(ctx, args.actorId, "course_create", "course", String(courseId), code);
+    return { id: courseId };
+  },
+});
+
+export const addCourseLesson = mutation({
+  args: {
+    ...secret,
+    actorId: v.number(),
+    courseId: v.number(),
+    title: v.string(),
+    framework: v.string(),
+    summary: v.string(),
+    groupName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const title = args.title.trim();
+    if (!title) return { error: "Thiếu tên buổi." as const };
+    const course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.courseId)).unique();
+    if (!course) return { error: "Khoá không tồn tại." as const };
+    const existing = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", course.legacyId)).collect();
+    const number = existing.reduce((max, row) => Math.max(max, row.number), 0) + 1;
+    const sortOrder = existing.reduce((max, row) => Math.max(max, row.sortOrder ?? row.number), 0) + 1;
+    const lessonId = await nextId(ctx, "lessons");
+    await ctx.db.insert("lessons", {
+      legacyId: lessonId,
+      courseId: course.legacyId,
+      number,
+      title,
+      framework: args.framework.trim() || "Buổi học",
+      summary: args.summary.trim(),
+      groupName: args.groupName.trim() || "CATALOG",
+      hasReport: 0,
+      storageKey: `${course.slug}-buoi${String(number).padStart(2, "0")}`,
+      contentVersion: now().slice(0, 7).replace("-", "."),
+      schemaVersion: "1",
+      archived: 0,
+      sortOrder,
+    });
+    await log(ctx, args.actorId, "lesson_add", "lesson", String(lessonId), title);
+    return { id: lessonId, number };
+  },
+});
+
+export const updateCourseLesson = mutation({
+  args: {
+    ...secret,
+    actorId: v.number(),
+    lessonId: v.number(),
+    title: v.string(),
+    framework: v.string(),
+    summary: v.string(),
+    groupName: v.string(),
+    archived: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const lesson = await ctx.db.query("lessons").withIndex("by_legacy", (q) => q.eq("legacyId", args.lessonId)).unique();
+    if (!lesson) return { error: "Buổi không tồn tại." as const };
+    const title = args.title.trim();
+    if (!title) return { error: "Thiếu tên buổi." as const };
+    await ctx.db.patch(lesson._id, {
+      title,
+      framework: args.framework.trim() || lesson.framework,
+      summary: args.summary.trim(),
+      groupName: args.groupName.trim() || lesson.groupName,
+      archived: args.archived ? 1 : 0,
+      sortOrder: lesson.sortOrder ?? lesson.number,
+    });
+    await log(ctx, args.actorId, "lesson_update", "lesson", String(lesson.legacyId), title);
+    return { id: lesson.legacyId };
+  },
+});
+
+export const moveCourseLesson = mutation({
+  args: { ...secret, actorId: v.number(), lessonId: v.number(), direction: v.union(v.literal("up"), v.literal("down")) },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const lesson = await ctx.db.query("lessons").withIndex("by_legacy", (q) => q.eq("legacyId", args.lessonId)).unique();
+    if (!lesson) return { error: "Buổi không tồn tại." as const };
+    const rows = (await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", lesson.courseId)).collect())
+      .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number);
+    const index = rows.findIndex((row) => row.legacyId === lesson.legacyId);
+    const swap = args.direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || swap < 0 || swap >= rows.length) return { id: lesson.legacyId };
+    const next = rows[swap];
+    const orderA = index + 1;
+    const orderB = swap + 1;
+    await ctx.db.patch(lesson._id, { sortOrder: orderB });
+    await ctx.db.patch(next._id, { sortOrder: orderA });
+    for (let i = 0; i < rows.length; i += 1) {
+      if (i === index || i === swap) continue;
+      const row = rows[i];
+      if ((row.sortOrder ?? row.number) !== i + 1) await ctx.db.patch(row._id, { sortOrder: i + 1 });
+    }
+    await log(ctx, args.actorId, "lesson_reorder", "lesson", String(lesson.legacyId), args.direction);
+    return { id: lesson.legacyId };
+  },
+});
+
+export const enrollLearner = mutation({
+  args: { ...secret, actorId: v.number(), userId: v.number(), cohortId: v.number() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
+    if (!user || user.active !== 1) return { error: "Tài khoản không hoạt động." as const };
+    const cohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", args.cohortId)).unique();
+    if (!cohort) return { error: "Lớp không tồn tại." as const };
+    const seats = await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", user.legacyId)).collect();
+    if (seats.some((row) => row.memberRole === "learner" && row.cohortId === cohort.legacyId)) {
+      return { status: "already" as const };
+    }
+    const enrollmentId = await nextId(ctx, "enrollments");
+    await ctx.db.insert("enrollments", {
+      legacyId: enrollmentId,
+      userId: user.legacyId,
+      cohortId: cohort.legacyId,
+      courseId: cohort.courseId,
+      memberRole: "learner",
+      createdAt: now(),
+    });
+    if (!user.managementCode) await ensureUserCode(ctx, user.legacyId, user.role === "user" ? learnerManagementCode(user.legacyId) : instructorManagementCode(user.legacyId));
+    await ensureClassChannel(ctx, cohort.legacyId, args.actorId);
+    await log(ctx, args.actorId, "enrollment", "user", String(user.legacyId), cohort.name);
+    return { status: "enrolled" as const };
+  },
+});
+
+export const unenrollLearner = mutation({
+  args: { ...secret, actorId: v.number(), userId: v.number(), cohortId: v.number() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const seats = await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect();
+    const seat = seats.find((row) => row.memberRole === "learner" && row.cohortId === args.cohortId);
+    if (!seat) return { error: "Học viên không ở lớp này." as const };
+    await ctx.db.delete(seat._id);
+    await log(ctx, args.actorId, "unenroll", "user", String(args.userId), String(args.cohortId));
+    return { ok: true as const };
+  },
+});
+
+export const setManagementCode = mutation({
+  args: { ...secret, actorId: v.number(), userId: v.number(), code: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const user = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.userId)).unique();
+    if (!user) return { error: "Không tìm thấy tài khoản." as const };
+    const code = cleanCode(args.code);
+    if (!code || code.length > 40) return { error: "Mã không hợp lệ." as const };
+    if (await takenUserCode(ctx, code, user.legacyId)) return { error: "Mã đã được dùng." as const };
+    await ctx.db.patch(user._id, { managementCode: code, updatedAt: now() });
+    await log(ctx, args.actorId, "management_code", "user", String(user.legacyId), code);
+    return { code };
   },
 });
 
@@ -453,6 +764,7 @@ export const createAccount = mutation({
       mustChangePassword: 1,
       createdAt: stamp,
       updatedAt: stamp,
+      managementCode: await freshUserCode(ctx, args.role === "user" ? learnerManagementCode(userId) : instructorManagementCode(userId)),
     });
     await log(ctx, args.actorId, "user_create", "user", String(userId), username);
     return { id: userId };
@@ -546,7 +858,10 @@ export const saveCmsLesson = mutation({
         updatedAt: now(),
       });
     }
-    const lessons = (await ctx.db.query("lessons").collect()).filter((row) => row.number === args.number);
+    const bmdo = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", BMDO_SLUG)).unique();
+    const lessons = bmdo
+      ? await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", bmdo.legacyId).eq("number", args.number)).collect()
+      : [];
     for (const lesson of lessons) await ctx.db.patch(lesson._id, { title: args.titleVi, summary: args.summaryVi });
     await log(ctx, args.actorId, "cms_lesson", "lesson", String(args.number), args.titleVi);
   },

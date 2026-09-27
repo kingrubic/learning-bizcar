@@ -21,11 +21,12 @@ export default async function LearnersPage() {
         <CreateLearnerForm cohorts={cohorts} />
         <div className="card" style={{ padding: 0 }}>
         <table>
-          <thead><tr><th>Học viên</th><th>Cohort</th><th></th></tr></thead>
+          <thead><tr><th>Học viên</th><th>Mã</th><th>Lớp</th><th></th></tr></thead>
           <tbody>
             {learners.map((learner) => (
               <tr key={learner.id}>
                 <td>{learner.display_name}<div className="muted">@{learner.username}</div></td>
+                <td>{learner.management_code || "—"}</td>
                 <td>{learner.cohort ?? "—"} · {learner.active ? "active" : "inactive"}</td>
                 <td><LearnerControls id={learner.id} active={Boolean(learner.active)} role={learner.role} /></td>
               </tr>

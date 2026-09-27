@@ -3,45 +3,25 @@ import { enrollSelf } from "@/lib/admin-actions";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 
-type Seat = {
-  cohort_id: number;
-  cohort_name: string;
-  member_role: string;
-} | null;
-
 export async function SelfEnroll({
   cohortId,
   cohortName,
-  enrollment,
+  enrolled,
   nextPath,
   variant,
 }: {
   cohortId: number;
   cohortName: string;
-  enrollment: Seat;
+  enrolled: boolean;
   nextPath: string;
   variant: "panel" | "inline";
 }) {
   const t = messages(await getLocale());
-  const inThis = enrollment?.member_role === "learner" && enrollment.cohort_id === cohortId;
-  const inOther = Boolean(enrollment && enrollment.member_role === "learner" && enrollment.cohort_id !== cohortId);
-
-  if (inThis) {
+  if (enrolled) {
     return (
       <p className="notice" style={{ marginTop: variant === "inline" ? 12 : 16 }}>
         <strong>{t.alreadyInCohort}</strong>
         <span>{cohortName}</span>
-        <Link className="btn gold" href="/learn/dashboard">{t.openLearner}</Link>
-      </p>
-    );
-  }
-
-  if (inOther) {
-    if (variant === "inline") return <p className="muted" style={{ marginTop: 12 }}>{t.alreadyInOther}</p>;
-    return (
-      <p className="notice" style={{ marginTop: 16 }}>
-        <strong>{t.alreadyInOther}</strong>
-        <span>{enrollment?.cohort_name}</span>
         <Link className="btn gold" href="/learn/dashboard">{t.openLearner}</Link>
       </p>
     );

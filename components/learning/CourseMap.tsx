@@ -1,25 +1,30 @@
 import Link from "next/link";
 import { answersFor, isLessonUnlocked, learningState } from "@/lib/access";
+import { BMDO_SLUG } from "@/convex/codes";
 import { GROUPS, LESSONS } from "@/lib/course";
 import { messages, type Locale } from "@/lib/i18n";
 import { cmsLessons } from "@/lib/cms";
 import { vabixDisplay } from "@/lib/vabix-applier";
 
-export async function CourseMap({ userId, locale }: { userId: number; locale: Locale }) {
+export async function CourseMap({ userId, locale, courseSlug }: { userId: number; locale: Locale; courseSlug?: string }) {
   const t = messages(locale);
-  const course = (await learningState(userId)).course;
-  const lessons = (await learningState(userId)).lessons;
-  const copies = new Map((await cmsLessons()).map((item) => [item.number, item]));
-  const answers = new Map((await answersFor(userId)).map((row) => [row.lesson_id, row]));
-  const unlockedByNumber = new Map(await Promise.all(lessons.map(async (lesson) => [lesson.number, await isLessonUnlocked(userId, lesson.number)] as const)));
+  const state = await learningState(userId, courseSlug);
+  if (!state) return null;
+  const course = state.course;
+  const lessons = state.lessons;
+  const useCms = course.slug === BMDO_SLUG;
+  const copies = useCms ? new Map((await cmsLessons()).map((item) => [item.number, item])) : new Map();
+  const answers = new Map((await answersFor(userId, course.slug)).map((row) => [row.lesson_id, row]));
+  const unlockedByNumber = new Map(await Promise.all(lessons.map(async (lesson) => [lesson.number, await isLessonUnlocked(userId, lesson.number, course.slug)] as const)));
+  const groups = useCms ? [...GROUPS] : [...new Set(lessons.map((lesson) => lesson.group_name))];
   return (
     <div>
-      {GROUPS.map((group) => {
-        const rows = lessons.filter((lesson) => lesson.group_name === group && (vabixDisplay(lesson.storage_key, lesson.number, locale) || copies.get(lesson.number)?.published !== 0));
+      {groups.map((group) => {
+        const rows = lessons.filter((lesson) => lesson.group_name === group && (vabixDisplay(lesson.storage_key, lesson.number, locale) || !useCms || copies.get(lesson.number)?.published !== 0));
         if (rows.length === 0) return null;
         return (
         <section className="group" key={group}>
-          <h2>{t.group[group]}</h2>
+          <h2>{t.group[group as keyof typeof t.group] ?? group}</h2>
           <div className="map-grid">
             {rows.map((lesson) => {
               const answer = answers.get(lesson.id);

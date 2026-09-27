@@ -30,8 +30,8 @@ export const MENUS: MenuItem[] = [
   { key: "tasks", label: "Nhiệm vụ", href: "/learn/tasks", area: "learn" },
   { key: "discussion", label: "Thảo luận", href: "/learn/discussion", area: "learn" },
   { key: "admin-home", label: "Tổng quan", href: "/admin/learning", area: "admin" },
-  { key: "admin-courses", label: "Course", href: "/admin/learning/courses", area: "admin" },
-  { key: "admin-cohorts", label: "Cohort", href: "/admin/learning/cohorts", area: "admin" },
+  { key: "admin-courses", label: "Khoá học", href: "/admin/learning/courses", area: "admin" },
+  { key: "admin-cohorts", label: "Lớp học", href: "/admin/learning/cohorts", area: "admin" },
   { key: "admin-discussion", label: "Thảo luận lớp", href: "/admin/learning/discussion", area: "admin" },
   { key: "admin-learners", label: "Học viên", href: "/admin/learning/learners", area: "admin" },
   { key: "admin-progress", label: "Tiến độ", href: "/admin/learning/progress", area: "admin" },
@@ -55,12 +55,15 @@ function withMenu(menus: MenuItem[], key: string) {
 
 export async function menusFor(user: SessionUser) {
   const state = await learningState(user.id);
-  const withMap = (menus: MenuItem[]) => menus.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item);
+  const withMap = (menus: MenuItem[]) => state
+    ? menus.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item)
+    : menus;
   if (user.role === "admin" || user.role === "mod") {
     const base = user.role === "admin" ? MENUS : MENUS.filter((item) => !item.adminOnly);
     return withMap(withMenu(withMenu(base, "discussion"), "admin-discussion"));
   }
   const menus = await learnerMenus(user);
+  if (!state) return menus;
   const learnAccess = menus.some((item) => item.area === "learn") || Boolean(state.enrollment);
   const next = learnAccess ? withMenu(menus, "discussion") : menus;
   return withMap(next);

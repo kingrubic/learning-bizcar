@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { api, q } from "@/lib/convex";
 import { getSession } from "@/lib/auth";
-import { canCoachSee, enrollmentFor } from "@/lib/access";
+import { canCoachSee, learningState } from "@/lib/access";
+import { setManagementCode } from "@/lib/admin-actions";
 import { WORKBOOK, readPath } from "@/lib/course";
 import { isVabixStorageKey, vabixFields } from "@/lib/vabix-applier";
 import { getLocale } from "@/lib/locale";
@@ -9,8 +10,9 @@ import { messages } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function LearnerDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function LearnerDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string }> }) {
   const { id } = await params;
+  const error = (await searchParams).error;
   const actor = await getSession();
   if (!actor) redirect("/learn/login");
   const learnerId = Number(id);
@@ -18,8 +20,8 @@ export default async function LearnerDetail({ params }: { params: Promise<{ id: 
   const detail = await q((convex, secret) => convex.query(api.reads.learnerDetail, { secret, id: learnerId }));
   if (!detail) notFound();
   if (detail.learner.role !== "user") {
-    const seat = await enrollmentFor(learnerId);
-    if (seat?.member_role !== "learner") notFound();
+    const state = await learningState(learnerId);
+    if (!state?.enrollments.length) notFound();
   }
   const learner = detail.learner;
   const answers = detail.answers;
@@ -27,8 +29,15 @@ export default async function LearnerDetail({ params }: { params: Promise<{ id: 
   const t = messages(await getLocale());
   return (
     <main>
-      <div className="eyebrow">@{learner.username} · {learner.active ? "active" : "inactive"} · {t.brandRole[learner.role]}</div>
+      <div className="eyebrow">@{learner.username} · {learner.management_code || "chưa có mã"} · {learner.active ? "active" : "inactive"} · {t.brandRole[learner.role]}</div>
       <h1 className="serif">{learner.display_name}</h1>
+      {error && <p className="notice"><strong>{error}</strong></p>}
+      {detail.classes.length > 0 && <p className="muted">{detail.classes.map((item) => `${item.course_code} · ${item.cohort_name} · ${item.cohort_code}`).join(" · ")}</p>}
+      <form action={setManagementCode} className="row-actions">
+        <input type="hidden" name="userId" value={learner.id} />
+        <input name="code" aria-label="Mã học viên" defaultValue={learner.management_code} placeholder="HV-0001" />
+        <button className="btn" type="submit">Lưu mã</button>
+      </form>
       {learner.role !== "user" && <p className="muted">{t.staffLearnerNote}</p>}
       <h2>Dòng thời gian</h2>
       <ul>{logs.map((log) => <li key={log.created_at + log.action}>{log.created_at} · {log.action} {log.detail ?? ""}</li>)}</ul>

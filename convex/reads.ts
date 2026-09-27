@@ -1,5 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { classCatalog, loadCatalog, type CatalogRow } from "./catalogScope";
+import { BMDO_SLUG, subsetProgress } from "./codes";
 import { gate, passwordFlag, publicUser } from "./helpers";
 
 const secret = { secret: v.string() };
@@ -51,68 +53,111 @@ export const menuKeys = query({
   },
 });
 
+function publicLesson(row: CatalogRow) {
+  return {
+    id: row.id,
+    number: row.number,
+    title: row.title,
+    framework: row.framework,
+    summary: row.summary,
+    group_name: row.groupName,
+    has_report: row.hasReport,
+    content_version: row.contentVersion,
+    schema_version: row.schemaVersion,
+    storage_key: row.storageKey,
+    archived: row.archived,
+    sort_order: row.sortOrder,
+  };
+}
+
 export const learnState = query({
-  args: { ...secret, userId: v.number() },
+  args: { ...secret, userId: v.number(), courseSlug: v.optional(v.string()) },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const enrolled = args.userId
+    const courses = await ctx.db.query("courses").collect();
+    const cohorts = await ctx.db.query("cohorts").collect();
+    const { lessons: catalog, links } = await loadCatalog(ctx);
+    const seats = args.userId
       ? (await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect())
-        .find((row) => row.memberRole === "learner")
-      : null;
-    const course = enrolled
-      ? await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", enrolled.courseId)).unique()
-      : await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", "bmdo-k03")).unique();
-    if (!course) return null;
-    const lessons = (await ctx.db.query("lessons").collect())
-      .filter((row) => row.courseId === course.legacyId)
-      .sort((a, b) => a.number - b.number)
-      .map((row) => ({
-        id: row.legacyId,
-        number: row.number,
-        title: row.title,
-        framework: row.framework,
-        summary: row.summary,
-        group_name: row.groupName,
-        has_report: row.hasReport,
-        content_version: row.contentVersion,
-        schema_version: row.schemaVersion,
-        storage_key: row.storageKey,
-      }));
-    const enrollment = enrolled && enrolled.courseId === course.legacyId ? enrolled : null;
-    const cohort = enrollment
-      ? await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", enrollment.cohortId)).unique()
-      : null;
-    const unlocks = enrollment
-      ? (await ctx.db.query("lessonUnlocks").collect()).filter((row) => row.cohortId === enrollment.cohortId)
+        .filter((row) => row.memberRole === "learner")
+        .sort((a, b) => b.legacyId - a.legacyId)
       : [];
-    const answers = (await ctx.db.query("lessonAnswers").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect()).map((row) => ({
-      id: row.legacyId,
-      user_id: row.userId,
-      course_id: row.courseId,
-      lesson_id: row.lessonId,
-      schema_version: row.schemaVersion,
-      answers_json: row.answersJson,
-      current_phase: row.currentPhase,
-      phases_done_json: row.phasesDoneJson,
-      progress_percent: row.progressPercent,
-      status: row.status,
-      completed_at: row.completedAt,
-      updated_at: row.updatedAt,
-    }));
-    return {
-      course: { id: course.legacyId, slug: course.slug, code: course.code, title: course.title, tagline: course.tagline },
-      lessons,
-      enrollment: enrollment && cohort ? {
-        id: enrollment.legacyId,
-        cohort_id: enrollment.cohortId,
-        course_id: enrollment.courseId,
-        member_role: enrollment.memberRole,
+    const answers = args.userId
+      ? await ctx.db.query("lessonAnswers").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect()
+      : [];
+    const answerRows = answers.map((row) => ({ lessonId: row.lessonId, status: row.status }));
+    const enrollments = seats.flatMap((seat) => {
+      const cohort = cohorts.find((item) => item.legacyId === seat.cohortId);
+      const course = courses.find((item) => item.legacyId === seat.courseId);
+      if (!cohort || !course) return [];
+      const subset = classCatalog(catalog, links, cohort);
+      const progress = subsetProgress(subset.map((lesson) => lesson.id), answerRows);
+      return [{
+        id: seat.legacyId,
+        cohort_id: seat.cohortId,
+        course_id: seat.courseId,
+        member_role: seat.memberRole,
         unlock_mode: cohort.unlockMode,
         review_enabled: cohort.reviewEnabled,
         cohort_name: cohort.name,
+        cohort_code: cohort.code ?? "",
+        course_slug: course.slug,
+        course_code: course.code,
+        course_title: course.title,
+        completed: progress.completed,
+        total: progress.total,
+        percent: progress.percent,
+      }];
+    });
+    const course = args.courseSlug
+      ? courses.find((item) => item.slug === args.courseSlug) ?? null
+      : courses.find((item) => item.legacyId === enrollments[0]?.course_id) ?? courses.find((item) => item.slug === BMDO_SLUG) ?? null;
+    if (!course) return null;
+    const enrollment = enrollments.find((item) => item.course_id === course.legacyId) ?? null;
+    const cohort = enrollment ? cohorts.find((item) => item.legacyId === enrollment.cohort_id) ?? null : null;
+    const lessons = (cohort ? classCatalog(catalog, links, cohort) : catalog.filter((lesson) => lesson.courseId === course.legacyId))
+      .map(publicLesson);
+    const lessonIds = new Set(lessons.map((lesson) => lesson.id));
+    const unlocks = cohort
+      ? (await ctx.db.query("lessonUnlocks").collect()).filter((row) => row.cohortId === cohort.legacyId && lessonIds.has(row.lessonId))
+      : [];
+    return {
+      course: {
+        id: course.legacyId,
+        slug: course.slug,
+        code: course.code,
+        title: course.title,
+        tagline: course.tagline,
+        intro: course.intro ?? "",
+        management_code: course.managementCode ?? "",
+      },
+      lessons,
+      enrollment: enrollment && cohort ? {
+        id: enrollment.id,
+        cohort_id: enrollment.cohort_id,
+        course_id: enrollment.course_id,
+        member_role: enrollment.member_role,
+        unlock_mode: enrollment.unlock_mode,
+        review_enabled: enrollment.review_enabled,
+        cohort_name: enrollment.cohort_name,
+        cohort_code: enrollment.cohort_code,
       } : null,
+      enrollments,
       unlocks: unlocks.map((row) => ({ lesson_id: row.lessonId, unlock_at: row.unlockAt })),
-      answers,
+      answers: answers.filter((row) => lessonIds.has(row.lessonId)).map((row) => ({
+        id: row.legacyId,
+        user_id: row.userId,
+        course_id: row.courseId,
+        lesson_id: row.lessonId,
+        schema_version: row.schemaVersion,
+        answers_json: row.answersJson,
+        current_phase: row.currentPhase,
+        phases_done_json: row.phasesDoneJson,
+        progress_percent: row.progressPercent,
+        status: row.status,
+        completed_at: row.completedAt,
+        updated_at: row.updatedAt,
+      })),
     };
   },
 });
@@ -151,29 +196,38 @@ export const adminHome = query({
     const learnerIds = new Set(enrollments.map((row) => row.userId));
     const cohorts = await ctx.db.query("cohorts").collect();
     const answers = await ctx.db.query("lessonAnswers").collect();
+    const { lessons: catalog, links } = await loadCatalog(ctx);
     const roster = users.filter((row) => row.role === "user" || learnerIds.has(row.legacyId));
     const rows = roster.flatMap((user) => {
       const org = orgs.find((item) => item.legacyId === user.organizationId);
-      const enrollment = enrollments.find((item) => item.userId === user.legacyId);
-      if (args.cohortId && enrollment?.cohortId !== args.cohortId) return [];
-      const cohort = cohorts.find((item) => item.legacyId === enrollment?.cohortId);
-      const mine = answers.filter((item) => item.userId === user.legacyId);
-      const matched = args.status ? mine.filter((item) => (item.status || "not_started") === args.status) : mine;
-      if (args.status && matched.length === 0) return [];
-      const done = matched.filter((item) => ["completed", "submitted", "reviewed"].includes(item.status)).length;
-      const last = matched.map((item) => item.updatedAt).sort().at(-1) ?? null;
-      return [{
-        id: user.legacyId,
-        display_name: user.displayName,
-        username: user.username,
-        active: user.active,
-        role: user.role,
-        org: org?.name ?? "",
-        cohort: cohort?.name ?? "",
-        touched: matched.length,
-        done,
-        last_activity: last,
-      }];
+      const seats = enrollments.filter((item) => item.userId === user.legacyId);
+      const targets = seats.length ? seats : [null];
+      return targets.flatMap((enrollment) => {
+        if (args.cohortId && enrollment?.cohortId !== args.cohortId) return [];
+        if (args.cohortId && !enrollment) return [];
+        const cohort = cohorts.find((item) => item.legacyId === enrollment?.cohortId);
+        const subset = cohort ? classCatalog(catalog, links, cohort) : [];
+        const subsetIds = new Set(subset.map((lesson) => lesson.id));
+        const mine = answers.filter((item) => item.userId === user.legacyId && subsetIds.has(item.lessonId));
+        const matched = args.status ? mine.filter((item) => (item.status || "not_started") === args.status) : mine;
+        if (args.status && matched.length === 0) return [];
+        const progress = subsetProgress(subset.map((lesson) => lesson.id), mine.map((item) => ({ lessonId: item.lessonId, status: item.status })));
+        const last = matched.map((item) => item.updatedAt).sort().at(-1) ?? null;
+        return [{
+          id: user.legacyId,
+          cohort_id: enrollment?.cohortId ?? 0,
+          display_name: user.displayName,
+          username: user.username,
+          active: user.active,
+          role: user.role,
+          org: org?.name ?? "",
+          cohort: cohort?.name ?? "",
+          touched: matched.length,
+          done: progress.completed,
+          total: cohort ? progress.total : 0,
+          last_activity: last,
+        }];
+      });
     });
     rows.sort((a, b) => (b.last_activity ?? "").localeCompare(a.last_activity ?? ""));
     return {
@@ -188,17 +242,29 @@ export const progressRows = query({
   handler: async (ctx, args) => {
     gate(args.secret);
     const users = await ctx.db.query("users").collect();
-    const lessons = await ctx.db.query("lessons").collect();
+    const courses = await ctx.db.query("courses").collect();
+    const cohorts = await ctx.db.query("cohorts").collect();
     const answers = await ctx.db.query("lessonAnswers").collect();
-    const learners = new Set((await ctx.db.query("enrollments").collect()).filter((row) => row.memberRole === "learner").map((row) => row.userId));
+    const enrollments = (await ctx.db.query("enrollments").collect()).filter((row) => row.memberRole === "learner");
+    const { lessons: catalog, links } = await loadCatalog(ctx);
+    const allowed = new Map<number, Set<number>>();
+    for (const seat of enrollments) {
+      const cohort = cohorts.find((item) => item.legacyId === seat.cohortId);
+      if (!cohort) continue;
+      const ids = allowed.get(seat.userId) ?? new Set<number>();
+      for (const lesson of classCatalog(catalog, links, cohort)) ids.add(lesson.id);
+      allowed.set(seat.userId, ids);
+    }
     return answers
-      .filter((row) => learners.has(row.userId))
+      .filter((row) => allowed.get(row.userId)?.has(row.lessonId))
       .map((row) => {
         const user = users.find((item) => item.legacyId === row.userId);
-        const lesson = lessons.find((item) => item.legacyId === row.lessonId);
+        const lesson = catalog.find((item) => item.id === row.lessonId);
+        const course = courses.find((item) => item.legacyId === lesson?.courseId);
         return {
           id: row.userId,
           display_name: user?.displayName ?? "",
+          course_code: course?.code ?? "",
           number: lesson?.number ?? null,
           title: lesson?.title ?? null,
           progress_percent: row.progressPercent,
@@ -208,7 +274,7 @@ export const progressRows = query({
         };
       })
       .filter((row) => row.number)
-      .sort((a, b) => a.display_name.localeCompare(b.display_name) || (a.number ?? 0) - (b.number ?? 0));
+      .sort((a, b) => a.display_name.localeCompare(b.display_name) || a.course_code.localeCompare(b.course_code) || (a.number ?? 0) - (b.number ?? 0));
   },
 });
 
@@ -348,20 +414,24 @@ export const learnersView = query({
   args: secret,
   handler: async (ctx, args) => {
     gate(args.secret);
-    const cohorts = (await ctx.db.query("cohorts").collect()).map((row) => ({ id: row.legacyId, name: row.name }));
+    const cohorts = (await ctx.db.query("cohorts").collect()).map((row) => ({ id: row.legacyId, name: row.name, course_id: row.courseId }));
     const enrollments = (await ctx.db.query("enrollments").collect()).filter((row) => row.memberRole === "learner");
     const learners = (await ctx.db.query("users").collect())
       .filter((row) => row.role === "user")
       .sort((a, b) => b.legacyId - a.legacyId)
       .map((row) => {
-        const enrollment = enrollments.find((item) => item.userId === row.legacyId);
+        const names = enrollments
+          .filter((item) => item.userId === row.legacyId)
+          .map((item) => cohorts.find((cohort) => cohort.id === item.cohortId)?.name)
+          .filter((name): name is string => Boolean(name));
         return {
           id: row.legacyId,
           display_name: row.displayName,
           username: row.username,
           active: row.active,
           role: row.role,
-          cohort: cohorts.find((item) => item.id === enrollment?.cohortId)?.name ?? null,
+          management_code: row.managementCode ?? "",
+          cohort: names.length ? names.join(", ") : null,
         };
       });
     return { cohorts, learners };
@@ -375,6 +445,15 @@ export const learnerDetail = query({
     const learner = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.id)).unique();
     if (!learner) return null;
     const lessons = await ctx.db.query("lessons").collect();
+    const cohorts = await ctx.db.query("cohorts").collect();
+    const courses = await ctx.db.query("courses").collect();
+    const seats = (await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", args.id)).collect())
+      .filter((row) => row.memberRole === "learner")
+      .map((row) => {
+        const cohort = cohorts.find((item) => item.legacyId === row.cohortId);
+        const course = courses.find((item) => item.legacyId === row.courseId);
+        return { cohort_name: cohort?.name ?? "", course_code: course?.code ?? "", cohort_code: cohort?.code ?? "" };
+      });
     const answers = (await ctx.db.query("lessonAnswers").withIndex("by_user", (q) => q.eq("userId", args.id)).collect())
       .map((row) => {
         const lesson = lessons.find((item) => item.legacyId === row.lessonId);
@@ -398,7 +477,15 @@ export const learnerDetail = query({
       .slice(0, 20)
       .map((row) => ({ action: row.action, detail: row.detail, created_at: row.createdAt }));
     return {
-      learner: { id: learner.legacyId, display_name: learner.displayName, username: learner.username, active: learner.active, role: learner.role },
+      learner: {
+        id: learner.legacyId,
+        display_name: learner.displayName,
+        username: learner.username,
+        active: learner.active,
+        role: learner.role,
+        management_code: learner.managementCode ?? "",
+      },
+      classes: seats,
       answers,
       logs,
     };
@@ -410,7 +497,32 @@ export const cohortsView = query({
   handler: async (ctx, args) => {
     gate(args.secret);
     const orgs = await ctx.db.query("organizations").collect();
-    const cohorts = (await ctx.db.query("cohorts").collect()).map((row) => ({
+    const userDocs = await ctx.db.query("users").collect();
+    const users = userDocs
+      .filter((row) => row.active === 1)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"))
+      .map((row) => ({
+        id: row.legacyId,
+        display_name: row.displayName,
+        username: row.username,
+        role: row.role,
+        management_code: row.managementCode ?? "",
+      }));
+    const { lessons: catalog, links } = await loadCatalog(ctx);
+    const cohortDocs = await ctx.db.query("cohorts").collect();
+    const enrollments = (await ctx.db.query("enrollments").collect())
+      .filter((row) => row.memberRole === "learner")
+      .map((row) => {
+        const user = userDocs.find((item) => item.legacyId === row.userId);
+        return {
+          user_id: row.userId,
+          cohort_id: row.cohortId,
+          display_name: user?.displayName ?? "",
+          username: user?.username ?? "",
+          management_code: user?.managementCode ?? "",
+        };
+      });
+    const cohorts = cohortDocs.map((row) => ({
       id: row.legacyId,
       name: row.name,
       org: orgs.find((item) => item.legacyId === row.organizationId)?.name ?? "",
@@ -418,6 +530,10 @@ export const cohortsView = query({
       review_enabled: row.reviewEnabled,
       course_id: row.courseId,
       organization_id: row.organizationId,
+      code: row.code ?? "",
+      instructor_id: row.instructorId ?? null,
+      lessons_scoped: row.lessonsScoped === 1 ? 1 : 0,
+      lesson_ids: classCatalog(catalog, links, row).map((lesson) => lesson.id),
     }));
     const courses = (await ctx.db.query("courses").collect()).map((row) => ({
       id: row.legacyId,
@@ -425,21 +541,26 @@ export const cohortsView = query({
       title: row.title,
       slug: row.slug,
       tagline: row.tagline,
+      intro: row.intro ?? "",
+      management_code: row.managementCode ?? "",
     }));
-    const lessons = (await ctx.db.query("lessons").collect())
-      .sort((a, b) => a.courseId - b.courseId || a.number - b.number)
+    const lessons = catalog
+      .sort((a, b) => a.courseId - b.courseId || a.sortOrder - b.sortOrder || a.number - b.number)
       .map((row) => ({
-        id: row.legacyId,
+        id: row.id,
         course_id: row.courseId,
         number: row.number,
         title: row.title,
         framework: row.framework,
+        summary: row.summary,
         group_name: row.groupName,
         content_version: row.contentVersion,
         schema_version: row.schemaVersion,
         has_report: row.hasReport,
+        archived: row.archived,
+        sort_order: row.sortOrder,
       }));
-    return { cohorts, lessons, courses };
+    return { cohorts, lessons, courses, users, enrollments };
   },
 });
 

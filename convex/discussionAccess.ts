@@ -32,15 +32,20 @@ export function draftFromMessages(
 
 export function channelAccess(input: {
   staff: boolean;
-  enrolledCohortId: number | null;
+  enrolledCohortIds: number[];
+  instructorCohortIds: number[];
   channelCohortId: number;
   kind: ChannelKind;
   archived: boolean;
   member: boolean;
 }): { read: boolean; post: boolean } {
-  if (!input.staff && input.archived) return { read: false, post: false };
-  const inCohort = input.staff || input.enrolledCohortId === input.channelCohortId;
+  const instructorHere = input.instructorCohortIds.includes(input.channelCohortId);
+  if (input.archived) {
+    if (input.staff || instructorHere) return { read: true, post: false };
+    return { read: false, post: false };
+  }
+  const inCohort = input.staff || input.enrolledCohortIds.includes(input.channelCohortId) || instructorHere;
   if (!inCohort) return { read: false, post: false };
-  if (input.kind === "group" && !input.staff && !input.member) return { read: false, post: false };
-  return { read: true, post: !input.archived };
+  if (input.kind === "group" && !input.staff && !instructorHere && !input.member) return { read: false, post: false };
+  return { read: true, post: true };
 }

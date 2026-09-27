@@ -11,22 +11,30 @@ import { lessonEn } from "@/lib/lesson-locale";
 
 export const dynamic = "force-dynamic";
 
-export default async function WorkbookPage() {
+export default async function WorkbookPage({ searchParams }: { searchParams: Promise<{ course?: string }> }) {
   const user = await getSession();
   if (!user) return null;
   if (!(await canSee(user, "workbook"))) redirect("/learn/profile");
   const locale = await getLocale();
   const t = messages(locale);
-  const state = await learningState(user.id);
+  const requested = (await searchParams).course;
+  const state = await learningState(user.id, requested);
+  if (!state) return null;
   const course = state.course;
   const lessons = state.lessons;
   const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
-  const answers = new Map((await answersFor(user.id)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
+  const answers = new Map((await answersFor(user.id, course.slug)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
+  const courses = [...new Map(state.enrollments.map((seat) => [seat.course_slug, seat])).values()];
   return (
     <main className="page">
       <div className="eyebrow">{course.code}</div>
       <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 56px)" }}>{vabix ? course.title : t.workbook}</h1>
       <p className="lede">{vabix ? VABIX_COURSE.mapLede[locale] : t.workbookLede}</p>
+      {courses.length > 1 && (
+        <p className="row-actions">
+          {courses.map((seat) => <Link key={seat.course_slug} className="btn" href={`/learn/workbook?course=${seat.course_slug}`}>{seat.course_code}</Link>)}
+        </p>
+      )}
       {lessons.map((lesson) => {
         const data = answers.get(lesson.id) ?? {};
         const local = vabixDisplay(lesson.storage_key, lesson.number, locale);

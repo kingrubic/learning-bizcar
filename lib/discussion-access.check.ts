@@ -2,7 +2,8 @@ import { channelAccess, draftFromMessages, type ChannelKind } from "../convex/di
 
 const base = {
   staff: false,
-  enrolledCohortId: 1 as number | null,
+  enrolledCohortIds: [1],
+  instructorCohortIds: [] as number[],
   channelCohortId: 1,
   kind: "class" as ChannelKind,
   archived: false,
@@ -18,11 +19,14 @@ expect({ ...base, channelCohortId: 2 }, false, false, "other cohort class");
 expect(base, true, true, "own class");
 expect({ ...base, kind: "group" }, false, false, "group outsider");
 expect({ ...base, kind: "group", member: true }, true, true, "group member");
-expect({ ...base, kind: "group", staff: true, enrolledCohortId: null, channelCohortId: 9 }, true, true, "staff any group");
+expect({ ...base, kind: "group", staff: true, enrolledCohortIds: [], channelCohortId: 9 }, true, true, "staff any group");
 expect({ ...base, archived: true }, false, false, "learner archived class");
 expect({ ...base, kind: "group", member: true, archived: true }, false, false, "learner archived group");
 expect({ ...base, staff: true, archived: true }, true, false, "staff archived read only");
-expect({ ...base, staff: true, enrolledCohortId: null, kind: "class", channelCohortId: 4 }, true, true, "staff class");
+expect({ ...base, staff: true, enrolledCohortIds: [], kind: "class", channelCohortId: 4 }, true, true, "staff class");
+expect({ ...base, enrolledCohortIds: [1, 4], channelCohortId: 4 }, true, true, "second class");
+expect({ ...base, enrolledCohortIds: [], instructorCohortIds: [4], channelCohortId: 4 }, true, true, "instructor class");
+expect({ ...base, enrolledCohortIds: [], instructorCohortIds: [4], channelCohortId: 4, archived: true }, true, false, "instructor archived");
 const draft = draftFromMessages([
   { authorName: "An", body: "hello\nworld", fileCount: 0 },
   { authorName: "Bình", body: "", fileCount: 2 },

@@ -11,9 +11,9 @@ export function CreateLearnerForm({ cohorts }: { cohorts: { id: number; name: st
       <div className="field"><label htmlFor="displayName">Họ và tên</label><input id="displayName" name="displayName" required /></div>
       <div className="field"><label htmlFor="username">Tên đăng nhập</label><input id="username" name="username" required autoComplete="off" /></div>
       <div className="field">
-        <label htmlFor="cohortId">Cohort</label>
+        <label htmlFor="cohortId">Lớp học</label>
         <select id="cohortId" name="cohortId" required defaultValue="">
-          <option value="" disabled>Chọn cohort</option>
+          <option value="" disabled>Chọn lớp</option>
           {cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
         </select>
       </div>

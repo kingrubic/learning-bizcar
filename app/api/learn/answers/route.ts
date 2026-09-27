@@ -6,12 +6,13 @@ export async function POST(request: Request) {
   const user = await getSession();
   if (!user || !(await canWriteLessons(user))) return NextResponse.json({ error: "Không có quyền lưu bài." }, { status: 403 });
   const body = await request.json().catch(() => null) as {
-    lessonNumber?: number; answers?: unknown; phase?: string; phasesDone?: string[]; progressPercent?: number;
+    lessonNumber?: number; courseSlug?: string; answers?: unknown; phase?: string; phasesDone?: string[]; progressPercent?: number;
   } | null;
   if (!body?.lessonNumber) return NextResponse.json({ error: "Thiếu bài học." }, { status: 400 });
   try {
     const saved = await saveAnswers({
       userId: user.id,
+      courseSlug: body.courseSlug,
       lessonNumber: body.lessonNumber,
       answers: body.answers ?? {},
       phase: body.phase || "overview",

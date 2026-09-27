@@ -8,7 +8,7 @@ import { notifyDiscussionPost } from "./notifications";
 const secret = { secret: v.string() };
 
 type Ctx = QueryCtx | MutationCtx;
-type Access = { userId: number; staff: boolean; enrolledCohortId: number | null };
+type Access = { userId: number; staff: boolean; enrolledCohortIds: number[]; instructorCohortIds: number[] };
 
 function isStaff(role: "admin" | "mod" | "user") {
   // Instructor is admin or mod (Điều phối). memberRole "coach" is unused, same scope as canCoachSee.
@@ -28,17 +28,19 @@ async function log(ctx: MutationCtx, actorId: number, action: string, targetId: 
   });
 }
 
-async function learnerSeat(ctx: Ctx, userId: number) {
+async function learnerCohortIds(ctx: Ctx, userId: number) {
   const rows = await ctx.db.query("enrollments").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
-  return rows.find((row) => row.memberRole === "learner") ?? null;
+  return rows.filter((row) => row.memberRole === "learner").map((row) => row.cohortId);
 }
 
 async function accessFor(ctx: Ctx, userId: number): Promise<Access | null> {
   const user = await userByLegacy(ctx, userId);
   if (!user || user.active !== 1) return null;
   const staff = isStaff(user.role);
-  const seat = await learnerSeat(ctx, user.legacyId);
-  return { userId: user.legacyId, staff, enrolledCohortId: seat?.cohortId ?? null };
+  const enrolledCohortIds = await learnerCohortIds(ctx, user.legacyId);
+  const instructorCohortIds = (await ctx.db.query("cohorts").withIndex("by_instructor", (q) => q.eq("instructorId", user.legacyId)).collect())
+    .map((row) => row.legacyId);
+  return { userId: user.legacyId, staff, enrolledCohortIds, instructorCohortIds };
 }
 
 async function isMember(ctx: Ctx, channelId: number, userId: number) {
@@ -68,7 +70,8 @@ async function decide(ctx: Ctx, access: Access, channel: { legacyId: number; coh
   const member = !access.staff && channel.kind === "group" ? await isMember(ctx, channel.legacyId, access.userId) : false;
   return channelAccess({
     staff: access.staff,
-    enrolledCohortId: access.enrolledCohortId,
+    enrolledCohortIds: access.enrolledCohortIds,
+    instructorCohortIds: access.instructorCohortIds,
     channelCohortId: channel.cohortId,
     kind: channel.kind,
     archived: channel.archived === 1,
@@ -144,8 +147,11 @@ export const touch = mutation({
         const cohorts = await ctx.db.query("cohorts").collect();
         for (const cohort of cohorts) targets.push(cohort.legacyId);
       }
-    } else if (access.enrolledCohortId) {
-      targets.push(access.enrolledCohortId);
+    } else {
+      const mine = new Set([...access.enrolledCohortIds, ...access.instructorCohortIds]);
+      for (const cohortId of mine) {
+        if (!onlyCohort || cohortId === onlyCohort) targets.push(cohortId);
+      }
     }
     const ids: number[] = [];
     for (const cohortId of targets) ids.push(await ensureClassChannel(ctx, cohortId, access.userId));
@@ -160,11 +166,10 @@ export const home = query({
     const access = await accessFor(ctx, args.userId);
     if (!access) return { staff: false, enrolled: false, channels: [] as ChannelRow[], missingClass: [] as number[] };
     // ponytail: staff lists every channel; switch to per-cohort reads if a deployment grows past a few hundred channels.
+    const scopeIds = access.staff ? [] : [...new Set([...access.enrolledCohortIds, ...access.instructorCohortIds])];
     const rows = access.staff
       ? await ctx.db.query("discussionChannels").collect()
-      : access.enrolledCohortId
-        ? await ctx.db.query("discussionChannels").withIndex("by_cohort", (q) => q.eq("cohortId", access.enrolledCohortId!)).collect()
-        : [];
+      : (await Promise.all(scopeIds.map((cohortId) => ctx.db.query("discussionChannels").withIndex("by_cohort", (q) => q.eq("cohortId", cohortId)).collect()))).flat();
     const cohorts = await ctx.db.query("cohorts").collect();
     const names = new Map(cohorts.map((row) => [row.legacyId, row.name]));
     const kept = oneClassPerCohort(rows);
@@ -189,9 +194,9 @@ export const home = query({
       return a.name < b.name ? -1 : a.name > b.name ? 1 : a.id - b.id;
     });
     const classIds = new Set(kept.filter((row) => row.kind === "class").map((row) => row.cohortId));
-    const scope = access.staff ? cohorts.map((row) => row.legacyId) : access.enrolledCohortId ? [access.enrolledCohortId] : [];
+    const scope = access.staff ? cohorts.map((row) => row.legacyId) : scopeIds;
     const missingClass = scope.filter((id) => !classIds.has(id));
-    return { staff: access.staff, enrolled: access.enrolledCohortId !== null, channels, missingClass };
+    return { staff: access.staff, enrolled: access.enrolledCohortIds.length > 0, channels, missingClass };
   },
 });
 

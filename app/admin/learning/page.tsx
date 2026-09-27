@@ -1,13 +1,10 @@
 import Link from "next/link";
 import { api, q } from "@/lib/convex";
-import { LESSONS } from "@/lib/course";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
 import { getSession } from "@/lib/auth";
-import { enrollmentFor } from "@/lib/access";
+import { learningState } from "@/lib/access";
 import { SelfEnroll } from "@/components/admin/SelfEnroll";
-
-const LESSON_TOTAL = LESSONS.length;
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +18,8 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const rows = data.rows;
   const cohorts = data.cohorts;
   const user = await getSession();
-  const enrollment = user ? await enrollmentFor(user.id) : undefined;
+  const state = user ? await learningState(user.id) : null;
+  const enrolledIds = new Set((state?.enrollments ?? []).map((seat) => seat.cohort_id));
   const selected = cohorts.find((item) => String(item.id) === (filters.cohort || ""));
   const enrollNote = filters.enroll === "enrolled" ? t.enrolledOk : filters.enroll === "error" ? t.enrollFailed : filters.enroll === "invalid" ? t.enrollInvalid : null;
   return (
@@ -50,29 +48,29 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         <SelfEnroll
           cohortId={selected.id}
           cohortName={selected.name}
-          enrollment={enrollment ?? null}
+          enrolled={selected ? enrolledIds.has(selected.id) : false}
           nextPath="/admin/learning"
           variant="panel"
         />
       )}
-      {user?.role === "admin" && !selected && enrollment?.member_role === "learner" && (
+      {user?.role === "admin" && !selected && (state?.enrollments.length ?? 0) > 0 && (
         <p className="notice" style={{ marginTop: 16 }}>
           <strong>{t.alreadyInCohort}</strong>
-          <span>{enrollment.cohort_name}</span>
+          <span>{state?.enrollments.map((seat) => seat.cohort_name).join(", ")}</span>
           <Link className="btn gold" href="/learn/dashboard">{t.openLearner}</Link>
         </p>
       )}
-      {user?.role === "admin" && !selected && !enrollment && <p className="muted" style={{ marginTop: 12 }}>{t.pickCohortToJoin}</p>}
+      {user?.role === "admin" && !selected && (state?.enrollments.length ?? 0) === 0 && <p className="muted" style={{ marginTop: 12 }}>{t.pickCohortToJoin}</p>}
       <div className="table-wrap card" style={{ marginTop: 16, padding: 0 }}>
         <table>
           <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Cohort</th><th>Hoàn thành</th><th>Hoạt động</th><th></th></tr></thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id}>
+              <tr key={`${row.id}-${row.cohort_id}`}>
                 <td>{row.display_name}<div className="muted">@{row.username} · {row.active ? "active" : "inactive"}{row.role !== "user" ? ` · ${t.brandRole[row.role]}` : ""}</div></td>
                 <td>{row.org}</td>
                 <td>{row.cohort}</td>
-                <td>{row.done}/{LESSON_TOTAL}</td>
+                <td>{row.done}/{row.total}</td>
                 <td>{row.last_activity ?? "—"}</td>
                 <td><Link href={`/admin/learning/learners/${row.id}`}>Hồ sơ</Link></td>
               </tr>

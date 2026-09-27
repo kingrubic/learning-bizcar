@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answersFor, courseProgress, enrollmentFor, learningState } from "@/lib/access";
+import { answersFor, learningState } from "@/lib/access";
 import { canSee } from "@/lib/permissions";
 import { CourseMap } from "@/components/learning/CourseMap";
 import { getLocale } from "@/lib/locale";
@@ -13,11 +13,13 @@ export default async function DashboardPage() {
   const user = await getSession();
   if (!user) return null;
   if (!(await canSee(user, "dashboard"))) redirect("/learn/profile");
-  const enrollment = await enrollmentFor(user.id);
-  const progress = await courseProgress(user.id);
-  const course = (await learningState(user.id)).course;
-  const lessons = (await learningState(user.id)).lessons;
-  const answers = await answersFor(user.id);
+  const state = await learningState(user.id);
+  if (!state) return null;
+  const enrollment = state.enrollment;
+  const course = state.course;
+  const lessons = state.lessons;
+  const answers = await answersFor(user.id, course.slug);
+  const progress = state.enrollments.find((seat) => seat.cohort_id === enrollment?.cohort_id) ?? { completed: 0, total: lessons.length, percent: 0 };
   const byId = new Map(answers.map((row) => [row.lesson_id, row]));
   const recent = [...answers].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))[0];
   const recentLesson = lessons.find((lesson) => lesson.id === recent?.lesson_id);
@@ -73,7 +75,19 @@ export default async function DashboardPage() {
           </div>
         </article>
       </div>
-      <CourseMap userId={user.id} locale={locale} />
+      {state.enrollments.length > 1 && (
+        <div className="grid-2" style={{ marginTop: 22 }}>
+          {state.enrollments.map((seat) => (
+            <article className="card" key={seat.cohort_id}>
+              <div className="eyebrow">{seat.course_code} · {seat.cohort_code}</div>
+              <h2 className="serif" style={{ fontSize: 28 }}>{seat.cohort_name}</h2>
+              <p>{seat.completed}/{seat.total} {t.doneOf} · {seat.percent}%</p>
+              <Link className="btn" href={`/learn/course/${seat.course_slug}`}>{seat.course_title}</Link>
+            </article>
+          ))}
+        </div>
+      )}
+      <CourseMap userId={user.id} locale={locale} courseSlug={course.slug} />
     </main>
   );
 }

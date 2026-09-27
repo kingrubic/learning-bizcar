@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { answersFor, learningState } from "@/lib/access";
 import { PORTFOLIO, readPath } from "@/lib/course";
@@ -10,16 +11,19 @@ import { messages } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortfolioPage() {
+export default async function PortfolioPage({ searchParams }: { searchParams: Promise<{ course?: string }> }) {
   const user = await getSession();
   if (!user) return null;
   if (!(await canSee(user, "portfolio"))) redirect("/learn/profile");
   const t = messages(await getLocale());
-  const state = await learningState(user.id);
+  const requested = (await searchParams).course;
+  const state = await learningState(user.id, requested);
+  if (!state) return null;
   const course = state.course;
   const lessons = state.lessons;
   const vabix = isVabixCourse(course.slug, lessons[0]?.storage_key);
-  const answers = new Map((await answersFor(user.id)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
+  const answers = new Map((await answersFor(user.id, course.slug)).map((row) => [row.lesson_id, JSON.parse(row.answers_json) as unknown]));
+  const courses = [...new Map(state.enrollments.map((seat) => [seat.course_slug, seat])).values()];
   return (
     <main className="page portfolio">
       <div className="no-print" style={{ textAlign: "right" }}><PrintButton label={t.print} /></div>
@@ -27,6 +31,11 @@ export default async function PortfolioPage() {
         <div className="eyebrow">VABIX · {course.code}</div>
         <h1 className="serif" style={{ fontSize: "clamp(36px, 5vw, 58px)", marginBottom: 0 }}>{vabix ? course.title : "My BizCar"}</h1>
         <p className="lede">{t.portfolioLede} {user.displayName}.</p>
+        {courses.length > 1 && (
+          <p className="row-actions no-print">
+            {courses.map((seat) => <Link key={seat.course_slug} className="btn" href={`/learn/portfolio?course=${seat.course_slug}`}>{seat.course_code}</Link>)}
+          </p>
+        )}
       </header>
       {lessons.map((lesson) => {
         const block = vabix

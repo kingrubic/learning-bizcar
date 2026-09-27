@@ -7,6 +7,7 @@ export type SaveState = "idle" | "saving" | "saved" | "offline" | "preview";
 
 type Props = {
   lessonNumber: number;
+  courseSlug?: string;
   storageKey: string;
   css: string;
   html: string;
@@ -151,6 +152,7 @@ export function LessonStage(props: Props) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             lessonNumber: current.lessonNumber,
+            courseSlug: current.courseSlug,
             answers: state,
             phase: reading.phase,
             phasesDone: reading.done,
@@ -208,6 +210,7 @@ export function LessonStage(props: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lessonNumber: props.lessonNumber,
+        courseSlug: props.courseSlug,
         answers: safeParse(value),
         phase: "overview",
         phasesDone: [],

@@ -2,6 +2,7 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
 import { VABIX_COURSE, VABIX_LESSONS } from "./vabixApplier";
+import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode } from "./codes";
 import { gate, nextId, now } from "./helpers";
 
 async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
@@ -11,6 +12,22 @@ async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
     const links = await ctx.db.query("permissionGroupMenus").withIndex("by_group", (q) => q.eq("groupId", group.legacyId)).collect();
     if (links.some((row) => row.menuKey === "discussion")) continue;
     await ctx.db.insert("permissionGroupMenus", { groupId: group.legacyId, menuKey: "discussion" });
+  }
+}
+
+async function bmdoCourses(ctx: MutationCtx) {
+  return (await ctx.db.query("courses").collect()).filter((course) => course.slug === BMDO_SLUG);
+}
+
+async function attachNewLesson(ctx: MutationCtx, courseId: number, lessonId: number, sortOrder: number) {
+  const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseId && row.lessonsScoped === 1);
+  for (const cohort of cohorts) {
+    const existing = await ctx.db
+      .query("cohortLessons")
+      .withIndex("by_cohort_lesson", (q) => q.eq("cohortId", cohort.legacyId).eq("lessonId", lessonId))
+      .unique();
+    if (existing) continue;
+    await ctx.db.insert("cohortLessons", { cohortId: cohort.legacyId, lessonId, sortOrder });
   }
 }
 
@@ -34,6 +51,8 @@ export const ensureCatalog = mutation({
       code: COURSE.code,
       title: COURSE.title,
       tagline: COURSE.tagline,
+      intro: "",
+      managementCode: courseManagementCode(COURSE.code),
     });
     for (const lesson of LESSONS) {
       const lessonId = await nextId(ctx, "lessons");
@@ -49,6 +68,8 @@ export const ensureCatalog = mutation({
         storageKey: lesson.storageKey,
         contentVersion: lesson.contentVersion,
         schemaVersion: lesson.schemaVersion,
+        archived: 0,
+        sortOrder: lesson.number,
       });
       await ctx.db.insert("cmsLessons", {
         number: lesson.number,
@@ -69,7 +90,14 @@ export const ensureCatalog = mutation({
       unlockMode: "all_open",
       reviewEnabled: 1,
       createdAt,
+      code: classManagementCode(COURSE.code, 1),
+      instructorId: null,
+      lessonsScoped: 1,
     });
+    const seededLessons = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", courseId)).collect();
+    for (const lesson of seededLessons) {
+      await ctx.db.insert("cohortLessons", { cohortId, lessonId: lesson.legacyId, sortOrder: lesson.number });
+    }
     for (const name of ["Học viên BMDO", "Vận hành chương trình"]) {
       const id = await nextId(ctx, "departments");
       await ctx.db.insert("departments", { legacyId: id, organizationId: orgId, name, createdAt });
@@ -95,7 +123,7 @@ export const addSession20 = mutation({
     const spec = LESSONS.find((lesson) => lesson.number === 20);
     if (!spec) throw new Error("LESSON_20_MISSING");
     const createdAt = now();
-    const courses = await ctx.db.query("courses").collect();
+    const courses = await bmdoCourses(ctx);
     const insertedLessons: { courseId: number; lessonId: number }[] = [];
     for (const course of courses) {
       const existing = await ctx.db
@@ -117,6 +145,7 @@ export const addSession20 = mutation({
         contentVersion: spec.contentVersion,
         schemaVersion: spec.schemaVersion,
       });
+      await attachNewLesson(ctx, course.legacyId, lessonId, spec.number);
       insertedLessons.push({ courseId: course.legacyId, lessonId });
     }
     const cms = await ctx.db.query("cmsLessons").withIndex("by_number", (q) => q.eq("number", spec.number)).unique();
@@ -165,7 +194,7 @@ export const addSession21 = mutation({
     const spec = LESSONS.find((lesson) => lesson.number === 21);
     if (!spec) throw new Error("LESSON_21_MISSING");
     const createdAt = now();
-    const courses = await ctx.db.query("courses").collect();
+    const courses = await bmdoCourses(ctx);
     const insertedLessons: { courseId: number; lessonId: number }[] = [];
     for (const course of courses) {
       const existing = await ctx.db
@@ -187,6 +216,7 @@ export const addSession21 = mutation({
         contentVersion: spec.contentVersion,
         schemaVersion: spec.schemaVersion,
       });
+      await attachNewLesson(ctx, course.legacyId, lessonId, spec.number);
       insertedLessons.push({ courseId: course.legacyId, lessonId });
     }
     const cms = await ctx.db.query("cmsLessons").withIndex("by_number", (q) => q.eq("number", spec.number)).unique();
@@ -235,7 +265,7 @@ export const addSessions22to27 = mutation({
     const specs = LESSONS.filter((lesson) => lesson.number >= 22 && lesson.number <= 27);
     if (specs.length !== 6) throw new Error("LESSONS_22_27_MISSING");
     const createdAt = now();
-    const courses = await ctx.db.query("courses").collect();
+    const courses = await bmdoCourses(ctx);
     const insertedLessons: { courseId: number; number: number; lessonId: number }[] = [];
     const cmsInserted: number[] = [];
     for (const spec of specs) {
@@ -259,6 +289,7 @@ export const addSessions22to27 = mutation({
           contentVersion: spec.contentVersion,
           schemaVersion: spec.schemaVersion,
         });
+        await attachNewLesson(ctx, course.legacyId, lessonId, spec.number);
         insertedLessons.push({ courseId: course.legacyId, number: spec.number, lessonId });
       }
       const cms = await ctx.db.query("cmsLessons").withIndex("by_number", (q) => q.eq("number", spec.number)).unique();
@@ -307,7 +338,7 @@ export const addSessions28to30 = mutation({
     const specs = LESSONS.filter((lesson) => lesson.number >= 28 && lesson.number <= 30);
     if (specs.length !== 3) throw new Error("LESSONS_28_30_MISSING");
     const createdAt = now();
-    const courses = await ctx.db.query("courses").collect();
+    const courses = await bmdoCourses(ctx);
     const insertedLessons: { courseId: number; number: number; lessonId: number }[] = [];
     const cmsInserted: number[] = [];
     for (const spec of specs) {
@@ -331,6 +362,7 @@ export const addSessions28to30 = mutation({
           contentVersion: spec.contentVersion,
           schemaVersion: spec.schemaVersion,
         });
+        await attachNewLesson(ctx, course.legacyId, lessonId, spec.number);
         insertedLessons.push({ courseId: course.legacyId, number: spec.number, lessonId });
       }
       const cms = await ctx.db.query("cmsLessons").withIndex("by_number", (q) => q.eq("number", spec.number)).unique();
@@ -397,6 +429,8 @@ export const addCourseVabixApplier = mutation({
         code: VABIX_COURSE.code,
         title: VABIX_COURSE.title,
         tagline: VABIX_COURSE.tagline,
+        intro: "",
+        managementCode: courseManagementCode(VABIX_COURSE.code),
       });
       course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", courseId)).unique();
       courseInserted = true;
@@ -423,7 +457,10 @@ export const addCourseVabixApplier = mutation({
         storageKey: spec.storageKey,
         contentVersion: spec.contentVersion,
         schemaVersion: spec.schemaVersion,
+        archived: 0,
+        sortOrder: spec.number,
       });
+      await attachNewLesson(ctx, courseRow.legacyId, lessonId, spec.number);
       insertedLessons.push(spec.number);
     }
     const cohorts = (await ctx.db.query("cohorts").collect()).filter((row) => row.courseId === courseRow.legacyId);
@@ -439,7 +476,14 @@ export const addCourseVabixApplier = mutation({
         unlockMode: "all_open",
         reviewEnabled: 1,
         createdAt,
+        code: classManagementCode(VABIX_COURSE.code, 1),
+        instructorId: null,
+        lessonsScoped: 1,
       });
+      const applierLessons = await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", courseRow.legacyId)).collect();
+      for (const lesson of applierLessons) {
+        await ctx.db.insert("cohortLessons", { cohortId, lessonId: lesson.legacyId, sortOrder: lesson.sortOrder ?? lesson.number });
+      }
       cohortInserted = true;
     }
     return {
@@ -476,6 +520,7 @@ export const upsertAdmin = mutation({
         mustChangePassword: 0,
         organizationId: org.legacyId,
         updatedAt: stamp,
+        ...(existing.managementCode ? {} : { managementCode: instructorManagementCode(existing.legacyId) }),
       });
       return { id: existing.legacyId, updated: true };
     }
@@ -494,7 +539,103 @@ export const upsertAdmin = mutation({
       mustChangePassword: 0,
       createdAt: stamp,
       updatedAt: stamp,
+      managementCode: instructorManagementCode(id),
     });
     return { id, updated: false };
+  },
+});
+
+/**
+ * Backfill Phase 1 mã, class lesson subsets, and a single instructor pointer.
+ * Idempotent. Does not rewrite lesson answers.
+ *
+ *   npx convex run seed:backfillPhase1 '{"secret":"<APP_SECRET>"}'
+ */
+export const backfillPhase1 = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const courseCodes = new Set<string>();
+    let coursesUpdated = 0;
+    for (const course of await ctx.db.query("courses").collect()) {
+      if (course.managementCode) {
+        courseCodes.add(course.managementCode);
+        continue;
+      }
+      const code = nextFreeCode(courseManagementCode(course.code || course.slug), courseCodes);
+      if (!code) continue;
+      courseCodes.add(code);
+      await ctx.db.patch(course._id, { managementCode: code, intro: course.intro ?? "" });
+      coursesUpdated += 1;
+    }
+    const classCodes = new Set<string>();
+    const cohorts = await ctx.db.query("cohorts").collect();
+    for (const cohort of cohorts) if (cohort.code) classCodes.add(cohort.code);
+    const courses = await ctx.db.query("courses").collect();
+    const lessons = await ctx.db.query("lessons").collect();
+    const enrollments = await ctx.db.query("enrollments").collect();
+    let cohortsUpdated = 0;
+    let linksInserted = 0;
+    const byCourse = new Map<number, typeof cohorts>();
+    for (const cohort of cohorts.sort((a, b) => a.legacyId - b.legacyId)) {
+      const list = byCourse.get(cohort.courseId) ?? [];
+      list.push(cohort);
+      byCourse.set(cohort.courseId, list);
+    }
+    for (const [courseId, rows] of byCourse) {
+      const course = courses.find((item) => item.legacyId === courseId);
+      let seq = 0;
+      for (const cohort of rows) {
+        seq += 1;
+        const patch: { code?: string; instructorId?: number | null; lessonsScoped?: number } = {};
+        if (!cohort.code && course) {
+          const code = nextFreeCode(classManagementCode(course.code, seq), classCodes);
+          if (code) {
+            classCodes.add(code);
+            patch.code = code;
+          }
+        }
+        if (cohort.instructorId == null) {
+          const coach = enrollments
+            .filter((row) => row.cohortId === cohort.legacyId && row.memberRole === "coach")
+            .sort((a, b) => a.legacyId - b.legacyId)[0];
+          if (coach) patch.instructorId = coach.userId;
+        }
+        const links = await ctx.db.query("cohortLessons").withIndex("by_cohort", (q) => q.eq("cohortId", cohort.legacyId)).collect();
+        if (cohort.lessonsScoped !== 1) {
+          if (links.length === 0) {
+            const catalog = lessons.filter((row) => row.courseId === cohort.courseId).sort((a, b) => a.number - b.number);
+            for (const lesson of catalog) {
+              await ctx.db.insert("cohortLessons", { cohortId: cohort.legacyId, lessonId: lesson.legacyId, sortOrder: lesson.sortOrder ?? lesson.number });
+              linksInserted += 1;
+            }
+          }
+          patch.lessonsScoped = 1;
+        }
+        if (Object.keys(patch).length) {
+          await ctx.db.patch(cohort._id, patch);
+          cohortsUpdated += 1;
+        }
+      }
+    }
+    const userCodes = new Set<string>();
+    let usersUpdated = 0;
+    for (const user of await ctx.db.query("users").collect()) {
+      if (user.managementCode) {
+        userCodes.add(user.managementCode);
+        continue;
+      }
+      const teaches = cohorts.some((row) => row.instructorId === user.legacyId);
+      const learns = enrollments.some((row) => row.userId === user.legacyId && row.memberRole === "learner");
+      const preferred = user.role !== "user" || (teaches && !learns)
+        ? instructorManagementCode(user.legacyId)
+        : learnerManagementCode(user.legacyId);
+      const code = nextFreeCode(preferred, userCodes);
+      if (!code) continue;
+      userCodes.add(code);
+      await ctx.db.patch(user._id, { managementCode: code });
+      usersUpdated += 1;
+    }
+    return { coursesUpdated, cohortsUpdated, linksInserted, usersUpdated };
   },
 });
