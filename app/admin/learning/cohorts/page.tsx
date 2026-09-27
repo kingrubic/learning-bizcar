@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { classPickerLabel } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
 import { enrollLearner, unenrollLearner } from "@/lib/admin-actions";
+import { CreateLearnerForm } from "@/components/admin/CreateLearnerForm";
 import { getSession } from "@/lib/auth";
 import { learningState } from "@/lib/access";
 import { getLocale } from "@/lib/locale";
@@ -61,8 +63,14 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
               }}
             />
             <div className="card" style={{ marginTop: 12 }}>
-              <p className="muted">{cohort.org} · Review {cohort.review_enabled ? "bật" : "tắt"} · {cohort.sessions.length} buổi · {lessonCount} bài trong buổi</p>
-              <h3>Học viên của lớp</h3>
+              <h3>Quản lý học viên</h3>
+              <p className="muted">{cohort.org} · Review {cohort.review_enabled ? "bật" : "tắt"} · {cohort.sessions.length} buổi · {lessonCount} bài trong buổi. Thêm học viên vào đúng lớp này.</p>
+              <CreateLearnerForm
+                embedded
+                cohortId={cohort.id}
+                cohorts={[{ id: cohort.id, name: cohort.name, code: cohort.code, course_code: course?.code ?? "" }]}
+              />
+              <p style={{ marginTop: 16 }}><strong>Đang trong lớp</strong></p>
               {members.length === 0 && <p className="muted">Chưa có học viên.</p>}
               {members.map((member) => (
                 <form key={member.user_id} action={unenrollLearner} className="user-line" style={{ marginTop: 8 }}>
@@ -75,16 +83,17 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
               {openUsers.length > 0 && (
                 <form action={enrollLearner} className="row-actions" style={{ marginTop: 12 }}>
                   <input type="hidden" name="cohortId" value={cohort.id} />
-                  <select name="userId" aria-label="Học viên" defaultValue={openUsers[0]?.id}>
+                  <label className="muted" htmlFor={`enroll-${cohort.id}`}>Tài khoản đã có</label>
+                  <select id={`enroll-${cohort.id}`} name="userId" aria-label="Tài khoản đã có" defaultValue={openUsers[0]?.id}>
                     {openUsers.map((item) => <option key={item.id} value={item.id}>{item.display_name} · @{item.username}</option>)}
                   </select>
-                  <button className="btn dark" type="submit">Ghi danh</button>
+                  <button className="btn dark" type="submit">Ghi danh vào lớp</button>
                 </form>
               )}
               {user?.role === "admin" && (
                 <SelfEnroll
                   cohortId={cohort.id}
-                  cohortName={cohort.name}
+                  cohortName={classPickerLabel({ name: cohort.name, code: cohort.code, courseCode: course?.code })}
                   enrolled={enrolledIds.has(cohort.id)}
                   nextPath="/admin/learning/cohorts"
                   variant="inline"

@@ -274,8 +274,10 @@ export const desk = query({
     gate(args.secret);
     const access = await accessFor(ctx, args.userId);
     if (!access?.staff) {
-      return { error: "forbidden" as const, cohorts: [] as { id: number; name: string }[], cohortId: null as number | null, roster: [] as RosterRow[], channels: [] as DeskChannel[] };
+      return { error: "forbidden" as const, cohorts: [] as { id: number; name: string; code: string; course_code: string }[], cohortId: null as number | null, roster: [] as RosterRow[], channels: [] as DeskChannel[] };
     }
+    const courses = await ctx.db.query("courses").collect();
+    const courseCode = new Map(courses.map((row) => [row.legacyId, row.code]));
     const cohorts = (await ctx.db.query("cohorts").collect()).sort((a, b) => (a.name < b.name ? -1 : 1));
     const cohort = cohorts.find((row) => row.legacyId === args.cohortId) ?? cohorts[0] ?? null;
     if (!cohort) return { error: null, cohorts: [], cohortId: null, roster: [], channels: [] };
@@ -309,7 +311,12 @@ export const desk = query({
     });
     return {
       error: null,
-      cohorts: cohorts.map((row) => ({ id: row.legacyId, name: row.name })),
+      cohorts: cohorts.map((row) => ({
+        id: row.legacyId,
+        name: row.name,
+        code: row.code ?? "",
+        course_code: courseCode.get(row.courseId) ?? "",
+      })),
       cohortId: cohort.legacyId,
       roster,
       channels,

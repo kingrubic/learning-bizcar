@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { classPickerLabel } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
 import { getSession } from "@/lib/auth";
 import { canCoachSee, learningState } from "@/lib/access";
@@ -32,7 +33,7 @@ export default async function LearnerDetail({ params, searchParams }: { params: 
       <div className="eyebrow">@{learner.username} · {learner.management_code || "chưa có mã"} · {learner.active ? "active" : "inactive"} · {t.brandRole[learner.role]}</div>
       <h1 className="serif">{learner.display_name}</h1>
       {error && <p className="notice"><strong>{error}</strong></p>}
-      {detail.classes.length > 0 && <p className="muted">{detail.classes.map((item) => `${item.course_code} · ${item.cohort_name} · ${item.cohort_code}`).join(" · ")}</p>}
+      {detail.classes.length > 0 && <p className="muted">{detail.classes.map((item) => classPickerLabel({ name: item.cohort_name, code: item.cohort_code, courseCode: item.course_code })).join(", ")}</p>}
       <form action={setManagementCode} className="row-actions">
         <input type="hidden" name="userId" value={learner.id} />
         <input name="code" aria-label="Mã học viên" defaultValue={learner.management_code} placeholder="HV-0001" />

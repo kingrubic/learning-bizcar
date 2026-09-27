@@ -1,6 +1,7 @@
 import {
   accessMode,
   classManagementCode,
+  classPickerLabel,
   courseManagementCode,
   fallbackSessions,
   instructorManagementCode,
@@ -25,6 +26,11 @@ function expect(cond: boolean, label: string) {
 expect(courseManagementCode("BMDO K03") === "KH-BMDO-K03", "course code");
 expect(courseManagementCode("vabix-applier") === "KH-VABIX-APPLIER", "course slug");
 expect(classManagementCode("BMDO K03", 1) === "LH-BMDO-K03-01", "class code");
+expect(classPickerLabel({ name: "BMDO K03 · Cohort 01", code: "LH-BMDO-K03-01", courseCode: "BMDO K03" }) === "LH-BMDO-K03-01 · BMDO K03 · Cohort 01", "bmdo class label");
+expect(classPickerLabel({ name: "APPLIER · Cohort 01", code: "LH-APPLIER-01", courseCode: "APPLIER" }) === "LH-APPLIER-01 · APPLIER · Cohort 01", "applier class label");
+expect(classPickerLabel({ name: "Lớp sáng", code: "LH-BMDO-K03-02", courseCode: "BMDO K03" }) === "LH-BMDO-K03-02 · Lớp sáng · BMDO K03", "course code secondary");
+expect(classPickerLabel({ name: "BMDO K03", courseCode: "BMDO K03" }) === "Lớp · BMDO K03", "unnamed code still a class");
+expect(classPickerLabel({ name: "  ", code: "", courseCode: "" }) === "Lớp chưa đặt tên", "empty class name");
 expect(learnerManagementCode(7) === "HV-0007", "learner code");
 expect(instructorManagementCode(12) === "GV-0012", "instructor code");
 expect(slugFromCode("BMDO K04") === "bmdo-k04", "slug");

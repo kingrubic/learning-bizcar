@@ -1,9 +1,17 @@
 import Link from "next/link";
+import { classPickerLabel } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
 import { CreateLearnerForm } from "@/components/admin/CreateLearnerForm";
 import { LearnerControls } from "@/components/admin/LearnerControls";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
+
+function classLine(ids: number[], cohorts: { id: number; name: string; code: string; course_code: string }[]) {
+  return ids.flatMap((id) => {
+    const cohort = cohorts.find((item) => item.id === id);
+    return cohort ? [classPickerLabel({ name: cohort.name, code: cohort.code, courseCode: cohort.course_code })] : [];
+  }).join(", ");
+}
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +35,7 @@ export default async function LearnersPage() {
               <tr key={learner.id}>
                 <td>{learner.display_name}<div className="muted">@{learner.username}</div></td>
                 <td>{learner.management_code || "—"}</td>
-                <td>{learner.cohort ?? "—"} · {learner.active ? "active" : "inactive"}</td>
+                <td>{classLine(learner.cohort_ids, cohorts) || "—"} · {learner.active ? "active" : "inactive"}</td>
                 <td><LearnerControls id={learner.id} active={Boolean(learner.active)} role={learner.role} /></td>
               </tr>
             ))}

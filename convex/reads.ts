@@ -1,7 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { classCatalog, cohortPlan, loadCatalog, type CatalogRow } from "./catalogScope";
-import { BMDO_SLUG, subsetProgress } from "./codes";
+import { BMDO_SLUG, classPickerLabel, subsetProgress } from "./codes";
 import { isAssignableInstructor, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { gate, passwordFlag, publicUser } from "./helpers";
 
@@ -202,6 +202,8 @@ export const adminHome = query({
     const enrollments = (await ctx.db.query("enrollments").collect()).filter((row) => row.memberRole === "learner");
     const learnerIds = new Set(enrollments.map((row) => row.userId));
     const cohorts = await ctx.db.query("cohorts").collect();
+    const courses = await ctx.db.query("courses").collect();
+    const courseCode = new Map(courses.map((row) => [row.legacyId, row.code]));
     const answers = await ctx.db.query("lessonAnswers").collect();
     const loaded = await loadCatalog(ctx);
     const roster = users.filter((row) => row.role === "user" || learnerIds.has(row.legacyId));
@@ -228,7 +230,7 @@ export const adminHome = query({
           active: user.active,
           role: user.role,
           org: org?.name ?? "",
-          cohort: cohort?.name ?? "",
+          cohort: cohort ? classPickerLabel({ name: cohort.name, code: cohort.code, courseCode: courseCode.get(cohort.courseId) }) : "",
           touched: matched.length,
           done: progress.completed,
           total: cohort ? progress.total : 0,
@@ -239,7 +241,12 @@ export const adminHome = query({
     rows.sort((a, b) => (b.last_activity ?? "").localeCompare(a.last_activity ?? ""));
     return {
       rows,
-      cohorts: cohorts.map((item) => ({ id: item.legacyId, name: item.name })),
+      cohorts: cohorts.map((item) => ({
+        id: item.legacyId,
+        name: item.name,
+        code: item.code ?? "",
+        course_code: courseCode.get(item.courseId) ?? "",
+      })),
     };
   },
 });
@@ -422,26 +429,28 @@ export const learnersView = query({
   args: secret,
   handler: async (ctx, args) => {
     gate(args.secret);
-    const cohorts = (await ctx.db.query("cohorts").collect()).map((row) => ({ id: row.legacyId, name: row.name, course_id: row.courseId }));
+    const courses = await ctx.db.query("courses").collect();
+    const courseCode = new Map(courses.map((row) => [row.legacyId, row.code]));
+    const cohorts = (await ctx.db.query("cohorts").collect()).map((row) => ({
+      id: row.legacyId,
+      name: row.name,
+      code: row.code ?? "",
+      course_id: row.courseId,
+      course_code: courseCode.get(row.courseId) ?? "",
+    }));
     const enrollments = (await ctx.db.query("enrollments").collect()).filter((row) => row.memberRole === "learner");
     const learners = (await ctx.db.query("users").collect())
       .filter((row) => row.role === "user")
       .sort((a, b) => b.legacyId - a.legacyId)
-      .map((row) => {
-        const names = enrollments
-          .filter((item) => item.userId === row.legacyId)
-          .map((item) => cohorts.find((cohort) => cohort.id === item.cohortId)?.name)
-          .filter((name): name is string => Boolean(name));
-        return {
-          id: row.legacyId,
-          display_name: row.displayName,
-          username: row.username,
-          active: row.active,
-          role: row.role,
-          management_code: row.managementCode ?? "",
-          cohort: names.length ? names.join(", ") : null,
-        };
-      });
+      .map((row) => ({
+        id: row.legacyId,
+        display_name: row.displayName,
+        username: row.username,
+        active: row.active,
+        role: row.role,
+        management_code: row.managementCode ?? "",
+        cohort_ids: enrollments.filter((item) => item.userId === row.legacyId).map((item) => item.cohortId),
+      }));
     return { cohorts, learners };
   },
 });
