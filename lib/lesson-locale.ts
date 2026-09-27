@@ -26,4 +26,7 @@ export const lessonEn: Record<number, { title: string; summary: string }> = {
   25: { title: "BizCar Oil / BOILE", summary: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices, and Expression show the culture that is lived through repeated evidence." },
   26: { title: "Steering / ICHOR", summary: "Steering Wheel and Driver. Interpret, Choose, Hold the Course, Own the Consequences, and Recalibrate so a decision is interpreted, chosen, held, owned, and recalibrated." },
   27: { title: "3E3S Matrix", summary: "3E3S Leadership Matrix. Energy, Enlightenment, and Executive Capacity across Self, Shared, and System so leadership capacity does not depend on one person." },
+  28: { title: "AI-First Enterprise", summary: "AI-First Enterprise. AI is a capability layer across the 12 BizCar components: start from the result, assign Core–Open–Digital Workforce, and choose one measurable AI use case." },
+  29: { title: "Digital Workforce / EPAS", summary: "Digital Workforce. Educate, Prompt, Align, and Standardize place AI in a human–AI workflow with knowledge, authority, standards, and a person who owns the final consequence." },
+  30: { title: "Master System Test / MST", summary: "Master System Test. MDS, CFS, and MST test the 12 MyBizCar components, find the First Constraint, and lock a 90-day intervention without letting an average hide a break point." },
 };

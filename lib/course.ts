@@ -34,7 +34,7 @@ export type LessonMeta = {
   title: string;
   framework: string;
   summary: string;
-  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION" | "CHASSIS" | "BRAND SHELL" | "ENVIRONMENT" | "FUEL" | "OIL" | "STEERING";
+  group: "FOUNDATION" | "ENGINE" | "VALUE WHEEL" | "MARKET WHEEL" | "PEOPLE WHEEL" | "FINANCE WHEEL" | "TRANSMISSION" | "CHASSIS" | "BRAND SHELL" | "ENVIRONMENT" | "FUEL" | "OIL" | "STEERING" | "AI-FIRST" | "WORKFORCE" | "MASTER TEST";
   hasReport: boolean;
   storageKey: string;
   schemaVersion: string;
@@ -69,9 +69,12 @@ export const LESSONS: LessonMeta[] = [
   { number: 25, code: "25", title: "BizCar Oil / BOILE", framework: "BOILE", summary: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices và Expression cho thấy văn hóa đang được sống qua bằng chứng lặp lại.", group: "OIL", hasReport: false, storageKey: "bmdo_k03_buoi25_bizcar_oil_boile_v1", schemaVersion: "1", contentVersion: "2026.09" },
   { number: 26, code: "26", title: "Steering / ICHOR", framework: "ICHOR", summary: "Steering Wheel & Driver. Interpret, Choose, Hold the Course, Own the Consequences và Recalibrate để diễn giải, lựa chọn, giữ hướng, sở hữu hệ quả và hiệu chỉnh.", group: "STEERING", hasReport: false, storageKey: "bmdo_k03_buoi26_ichor_decision_v1", schemaVersion: "1", contentVersion: "2026.09" },
   { number: 27, code: "27", title: "3E3S Matrix", framework: "3E3S", summary: "3E3S Leadership Matrix. Energy, Enlightenment và Executive Capacity trên Self, Shared và System để khả lực lãnh đạo không phụ thuộc một người.", group: "STEERING", hasReport: false, storageKey: "bmdo_k03_buoi27_3e3s_matrix_v1", schemaVersion: "1", contentVersion: "2026.09" },
+  { number: 28, code: "28", title: "AI-First Enterprise", framework: "AI-First", summary: "AI-First Enterprise. AI là lớp khả lực xuyên suốt 12 cấu phần The BizCar: bắt đầu từ kết quả, phân bổ Core–Open–Digital Workforce và chọn một AI Use Case đo được.", group: "AI-FIRST", hasReport: false, storageKey: "bmdo_k03_buoi28_ai_first_v1", schemaVersion: "1", contentVersion: "2026.09" },
+  { number: 29, code: "29", title: "Digital Workforce / EPAS", framework: "EPAS", summary: "Digital Workforce. Educate, Prompt, Align và Standardize đưa AI vào dòng công việc Người–AI có tri thức, quyền hạn, tiêu chuẩn và người chịu trách nhiệm cuối cùng.", group: "WORKFORCE", hasReport: false, storageKey: "bmdo_k03_buoi29_digital_workforce_epas_v1", schemaVersion: "1", contentVersion: "2026.09" },
+  { number: 30, code: "30", title: "Master System Test / MST", framework: "MST", summary: "Master System Test. MDS, CFS và MST kiểm định 12 cấu phần MyBizCar, tìm First Constraint và khóa can thiệp 90 ngày, không dùng điểm trung bình để che điểm gãy.", group: "MASTER TEST", hasReport: false, storageKey: "bmdo_k03_buoi30_master_system_test_v1", schemaVersion: "1", contentVersion: "2026.09" },
 ];
 
-export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION", "CHASSIS", "BRAND SHELL", "ENVIRONMENT", "FUEL", "OIL", "STEERING"] as const;
+export const GROUPS = ["FOUNDATION", "ENGINE", "VALUE WHEEL", "MARKET WHEEL", "PEOPLE WHEEL", "FINANCE WHEEL", "TRANSMISSION", "CHASSIS", "BRAND SHELL", "ENVIRONMENT", "FUEL", "OIL", "STEERING", "AI-FIRST", "WORKFORCE", "MASTER TEST"] as const;
 
 export function lessonByNumber(n: number) {
   return LESSONS.find((l) => l.number === n);
@@ -455,6 +458,67 @@ export const WORKBOOK: Record<number, WorkbookField[]> = {
     { path: "resolve.action", label: "Thử nghiệm 7 ngày" },
     { path: "resolve.evidence", label: "Bằng chứng" },
   ],
+  28: [
+    { path: "profile.company", label: "Doanh nghiệp" },
+    { path: "profile.name", label: "Người thiết kế" },
+    { path: "activate.shift", label: "Câu hỏi chuyển mô thức" },
+    { path: "cod.work", label: "Công việc được lựa chọn" },
+    { path: "cod.result", label: "Kết quả công việc" },
+    { path: "cod.decision", label: "Quyền quyết định cuối cùng" },
+    { path: "cod.humanCheck", label: "Điểm con người kiểm tra" },
+    { path: "usecase.name", label: "AI Use Case" },
+    { path: "usecase.work", label: "Công việc cần thiết kế lại" },
+    { path: "usecase.target", label: "Kết quả kỳ vọng" },
+    { path: "fitCondition", label: "Điều kiện trước khi triển khai" },
+    { path: "improve.key", label: "Cải tiến quan trọng nhất" },
+    { path: "extract.0", label: "Nguyên lý 1" },
+    { path: "extract.1", label: "Nguyên lý 2" },
+    { path: "extract.2", label: "Nguyên lý 3" },
+    { path: "resolve.action", label: "Việc sẽ thực hiện" },
+    { path: "resolve.people", label: "Người tham gia" },
+    { path: "resolve.evidence", label: "Bằng chứng" },
+  ],
+  29: [
+    { path: "profile.company", label: "Doanh nghiệp" },
+    { path: "profile.name", label: "Người thiết kế" },
+    { path: "usecase.name", label: "AI Use Case" },
+    { path: "usecase.work", label: "Công việc cần thiết kế lại" },
+    { path: "usecase.outcome", label: "Kết quả kỳ vọng" },
+    { path: "educate.owner", label: "Chủ sở hữu tri thức" },
+    { path: "prompt.template", label: "Prompt / Instruction" },
+    { path: "authority.owner", label: "Chủ sở hữu công việc" },
+    { path: "authority.escalation", label: "Khi chuyển cho con người" },
+    { path: "align.stop", label: "Điều kiện bắt buộc dừng" },
+    { path: "improve.key", label: "Cải tiến quan trọng nhất" },
+    { path: "extract.0", label: "Bài học 1" },
+    { path: "extract.1", label: "Bài học 2" },
+    { path: "extract.2", label: "Bài học 3" },
+    { path: "resolve.action", label: "Hành động 7 ngày" },
+    { path: "resolve.owner", label: "Người chịu trách nhiệm" },
+    { path: "resolve.deadline", label: "Thời hạn" },
+  ],
+  30: [
+    { path: "profile.company", label: "Doanh nghiệp" },
+    { path: "profile.name", label: "Người thiết kế" },
+    { path: "activate.shift", label: "Câu hỏi chuyển mô thức" },
+    { path: "activate.weak", label: "Tín hiệu yếu nhất" },
+    { path: "diagnosis.gap", label: "Khoảng cách lớn nhất" },
+    { path: "constraint.result", label: "Kết quả đang bị giới hạn" },
+    { path: "constraint.point", label: "First Constraint" },
+    { path: "constraint.evidence", label: "Bằng chứng điểm nghẽn" },
+    { path: "intervention.primary", label: "Cấu phần chính" },
+    { path: "intervention.owner", label: "Người sở hữu can thiệp" },
+    { path: "master.status", label: "Kết luận MasterTest" },
+    { path: "master.conditions", label: "Điều kiện kết luận" },
+    { path: "extract.0", label: "Bài học 1" },
+    { path: "extract.1", label: "Bài học 2" },
+    { path: "extract.2", label: "Bài học 3" },
+    { path: "plan.0.action", label: "Ngày 1–30" },
+    { path: "plan.1.action", label: "Ngày 31–60" },
+    { path: "plan.2.action", label: "Ngày 61–90" },
+    { path: "plan.owner", label: "Người sở hữu kế hoạch" },
+    { path: "plan.retest", label: "Ngày kiểm định lại" },
+  ],
 };
 
 export const PORTFOLIO: Record<number, { heading: string; paths: WorkbookField[] }> = {
@@ -485,6 +549,9 @@ export const PORTFOLIO: Record<number, { heading: string; paths: WorkbookField[]
   25: { heading: "BizCar Oil / BOILE", paths: WORKBOOK[25] },
   26: { heading: "Steering / ICHOR", paths: WORKBOOK[26] },
   27: { heading: "3E3S Matrix", paths: WORKBOOK[27] },
+  28: { heading: "AI-First Enterprise", paths: WORKBOOK[28] },
+  29: { heading: "Digital Workforce / EPAS", paths: WORKBOOK[29] },
+  30: { heading: "Master System Test / MST", paths: WORKBOOK[30] },
 };
 
 export function readPath(source: unknown, path: string): string {
