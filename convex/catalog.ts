@@ -33,6 +33,9 @@ export const LESSONS = [
   { number: 25, title: "BizCar Oil / BOILE", framework: "BOILE", summary: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices và Expression cho thấy văn hóa đang được sống qua bằng chứng lặp lại.", group: "OIL", hasReport: false, storageKey: "bmdo_k03_buoi25_bizcar_oil_boile_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "BizCar Oil / BOILE", summaryEn: "BizCar Oil. Beliefs, Operating Priorities, Interactions, Lived Practices, and Expression show the culture that is lived through repeated evidence." },
   { number: 26, title: "Steering / ICHOR", framework: "ICHOR", summary: "Steering Wheel & Driver. Interpret, Choose, Hold the Course, Own the Consequences và Recalibrate để diễn giải, lựa chọn, giữ hướng, sở hữu hệ quả và hiệu chỉnh.", group: "STEERING", hasReport: false, storageKey: "bmdo_k03_buoi26_ichor_decision_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Steering / ICHOR", summaryEn: "Steering Wheel and Driver. Interpret, Choose, Hold the Course, Own the Consequences, and Recalibrate so a decision is interpreted, chosen, held, owned, and recalibrated." },
   { number: 27, title: "3E3S Matrix", framework: "3E3S", summary: "3E3S Leadership Matrix. Energy, Enlightenment và Executive Capacity trên Self, Shared và System để khả lực lãnh đạo không phụ thuộc một người.", group: "STEERING", hasReport: false, storageKey: "bmdo_k03_buoi27_3e3s_matrix_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "3E3S Matrix", summaryEn: "3E3S Leadership Matrix. Energy, Enlightenment, and Executive Capacity across Self, Shared, and System so leadership capacity does not depend on one person." },
+  { number: 28, title: "AI-First Enterprise", framework: "AI-First", summary: "AI-First Enterprise. AI là lớp khả lực xuyên suốt 12 cấu phần The BizCar: bắt đầu từ kết quả, phân bổ Core–Open–Digital Workforce và chọn một AI Use Case đo được.", group: "AI-FIRST", hasReport: false, storageKey: "bmdo_k03_buoi28_ai_first_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "AI-First Enterprise", summaryEn: "AI-First Enterprise. AI is a capability layer across the 12 BizCar components: start from the result, assign Core–Open–Digital Workforce, and choose one measurable AI use case." },
+  { number: 29, title: "Digital Workforce / EPAS", framework: "EPAS", summary: "Digital Workforce. Educate, Prompt, Align và Standardize đưa AI vào dòng công việc Người–AI có tri thức, quyền hạn, tiêu chuẩn và người chịu trách nhiệm cuối cùng.", group: "WORKFORCE", hasReport: false, storageKey: "bmdo_k03_buoi29_digital_workforce_epas_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Digital Workforce / EPAS", summaryEn: "Digital Workforce. Educate, Prompt, Align, and Standardize place AI in a human–AI workflow with knowledge, authority, standards, and a person who owns the final consequence." },
+  { number: 30, title: "Master System Test / MST", framework: "MST", summary: "Master System Test. MDS, CFS và MST kiểm định 12 cấu phần MyBizCar, tìm First Constraint và khóa can thiệp 90 ngày, không dùng điểm trung bình để che điểm gãy.", group: "MASTER TEST", hasReport: false, storageKey: "bmdo_k03_buoi30_master_system_test_v1", schemaVersion: "1", contentVersion: "2026.09", titleEn: "Master System Test / MST", summaryEn: "Master System Test. MDS, CFS, and MST test the 12 MyBizCar components, find the First Constraint, and lock a 90-day intervention without letting an average hide a break point." },
 ];
 
 export const CMS_BLOCKS: [string, "vi" | "en", string][] = [
@@ -42,8 +45,8 @@ export const CMS_BLOCKS: [string, "vi" | "en", string][] = [
   ["login.story", "en", "A business transformation operating lab. Each learner designs the MyBizCar of their own company — from the 12 management domains to the management design portfolio."],
   ["login.tagline", "vi", "Kết tri thức. Nối giá trị."],
   ["login.tagline", "en", "Connect knowledge. Connect value."],
-  ["map.lede", "vi", "Hai mươi bảy buổi thiết kế MyBizCar, từ 12 miền quản trị đến ma trận lãnh đạo 3E3S."],
-  ["map.lede", "en", "Twenty-seven design sessions for MyBizCar, from the 12 management domains to the 3E3S leadership matrix."],
+  ["map.lede", "vi", "Ba mươi buổi thiết kế MyBizCar, từ 12 miền quản trị đến kiểm định tổng MST."],
+  ["map.lede", "en", "Thirty design sessions for MyBizCar, from the 12 management domains to the MST master system test."],
 ];
 
 export const PREVIOUS_MAP_LEDE: Record<"vi" | "en", string> = {
@@ -59,6 +62,11 @@ export const SESSION20_MAP_LEDE: Record<"vi" | "en", string> = {
 export const SESSION21_MAP_LEDE: Record<"vi" | "en", string> = {
   vi: "Hai mươi mốt buổi thiết kế MyBizCar, từ 12 miền quản trị đến khung gầm SGD.",
   en: "Twenty-one design sessions for MyBizCar, from the 12 management domains to the SGD chassis.",
+};
+
+export const SESSION27_MAP_LEDE: Record<"vi" | "en", string> = {
+  vi: "Hai mươi bảy buổi thiết kế MyBizCar, từ 12 miền quản trị đến ma trận lãnh đạo 3E3S.",
+  en: "Twenty-seven design sessions for MyBizCar, from the 12 management domains to the 3E3S leadership matrix.",
 };
 
 export const PERMISSION_PRESETS = [
