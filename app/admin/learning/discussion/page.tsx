@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { classPickerLabel } from "@/convex/codes";
 import { getSession } from "@/lib/auth";
 import { api, q } from "@/lib/convex";
 import { archiveDiscussionGroup, createDiscussionGroup, deleteDiscussionGroup, saveDiscussionGroup } from "@/lib/discussion-actions";
@@ -48,7 +49,7 @@ export default async function DiscussionDeskPage({ searchParams }: { searchParam
           <form className="row-actions" method="get">
             <label htmlFor="cohort">{t.adminDiscussionCohort}</label>
             <select id="cohort" name="cohort" defaultValue={String(desk.cohortId)} aria-label={t.adminDiscussionCohort}>
-              {desk.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{cohort.name}</option>)}
+              {desk.cohorts.map((cohort) => <option key={cohort.id} value={cohort.id}>{classPickerLabel({ name: cohort.name, code: cohort.code, courseCode: cohort.course_code })}</option>)}
             </select>
             <button className="btn dark" type="submit">{t.adminDiscussionCohort}</button>
           </form>

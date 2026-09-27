@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { classPickerLabel } from "@/convex/codes";
 import { api, q } from "@/lib/convex";
 import { getLocale } from "@/lib/locale";
 import { messages } from "@/lib/i18n";
@@ -30,9 +31,9 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         <Link className="btn gold" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link>
       </p>
       <form className="row-actions" method="get">
-        <select name="cohort" defaultValue={filters.cohort || ""} aria-label="Cohort">
-          <option value="">Mọi cohort</option>
-          {cohorts.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        <select name="cohort" defaultValue={filters.cohort || ""} aria-label="Lớp học">
+          <option value="">Mọi lớp</option>
+          {cohorts.map((item) => <option key={item.id} value={item.id}>{classPickerLabel({ name: item.name, code: item.code, courseCode: item.course_code })}</option>)}
         </select>
         <select name="status" defaultValue={status} aria-label="Trạng thái">
           <option value="">Mọi trạng thái</option>
@@ -47,7 +48,7 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       {user?.role === "admin" && selected && (
         <SelfEnroll
           cohortId={selected.id}
-          cohortName={selected.name}
+          cohortName={classPickerLabel({ name: selected.name, code: selected.code, courseCode: selected.course_code })}
           enrolled={selected ? enrolledIds.has(selected.id) : false}
           nextPath="/admin/learning"
           variant="panel"
@@ -56,14 +57,14 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
       {user?.role === "admin" && !selected && (state?.enrollments.length ?? 0) > 0 && (
         <p className="notice" style={{ marginTop: 16 }}>
           <strong>{t.alreadyInCohort}</strong>
-          <span>{state?.enrollments.map((seat) => seat.cohort_name).join(", ")}</span>
+          <span>{state?.enrollments.map((seat) => classPickerLabel({ name: seat.cohort_name, code: seat.cohort_code, courseCode: seat.course_code })).join(", ")}</span>
           <Link className="btn gold" href="/learn/dashboard">{t.openLearner}</Link>
         </p>
       )}
       {user?.role === "admin" && !selected && (state?.enrollments.length ?? 0) === 0 && <p className="muted" style={{ marginTop: 12 }}>{t.pickCohortToJoin}</p>}
       <div className="table-wrap card" style={{ marginTop: 16, padding: 0 }}>
         <table>
-          <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Cohort</th><th>Bài xong</th><th>Hoạt động</th><th></th></tr></thead>
+          <thead><tr><th>Học viên</th><th>Tổ chức</th><th>Lớp</th><th>Bài xong</th><th>Hoạt động</th><th></th></tr></thead>
           <tbody>
             {rows.map((row) => (
               <tr key={`${row.id}-${row.cohort_id}`}>

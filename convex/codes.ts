@@ -24,6 +24,17 @@ export function instructorManagementCode(legacyId: number) {
   return `GV-${String(legacyId).padStart(4, "0")}`;
 }
 
+/** Selectable entity is the class. Lead with the LH- code, then the class name. Course code is only a suffix when it is not already in that text. */
+export function classPickerLabel(row: { name: string; code?: string; courseCode?: string }) {
+  const name = row.name.trim();
+  const code = row.code?.trim() ?? "";
+  const course = row.courseCode?.trim() ?? "";
+  const title = name || "Lớp chưa đặt tên";
+  const primary = code ? `${code} · ${title}` : (name ? `Lớp · ${name}` : title);
+  if (!course || primary.toLocaleUpperCase("vi").includes(course.toLocaleUpperCase("vi"))) return primary;
+  return `${primary} · ${course}`;
+}
+
 export function slugFromCode(code: string) {
   return code.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

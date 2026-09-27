@@ -44,6 +44,7 @@ export async function createLearner(_prev: CreateLearnerState, formData: FormDat
     if ("error" in created) return { error: created.error };
     revalidatePath("/admin/learning/learners");
     revalidatePath("/admin/learning");
+    revalidatePath("/admin/learning/cohorts");
     revalidatePath("/admin/organization/users");
     return { username, temporaryPassword: temp };
   } catch (error) {
