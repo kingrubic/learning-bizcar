@@ -1,9 +1,26 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
+import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PRACTICAL_INSTRUCTOR_DESCRIPTION, PRACTICAL_INSTRUCTOR_GROUP, PRACTICAL_INSTRUCTOR_MENUS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
 import { VABIX_COURSE, VABIX_LESSONS } from "./vabixApplier";
 import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode } from "./codes";
 import { gate, nextId, now } from "./helpers";
+
+/** Create the practical-instructor group once. An existing row with the same name is left as-is, including its menus. */
+async function ensurePracticalInstructorGroupRow(ctx: MutationCtx) {
+  const existing = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", PRACTICAL_INSTRUCTOR_GROUP)).unique();
+  if (existing) return { id: existing.legacyId, created: false as const };
+  const id = await nextId(ctx, "permissionGroups");
+  await ctx.db.insert("permissionGroups", {
+    legacyId: id,
+    name: PRACTICAL_INSTRUCTOR_GROUP,
+    description: PRACTICAL_INSTRUCTOR_DESCRIPTION,
+    createdAt: now(),
+  });
+  for (const menuKey of PRACTICAL_INSTRUCTOR_MENUS) {
+    await ctx.db.insert("permissionGroupMenus", { groupId: id, menuKey });
+  }
+  return { id, created: true as const };
+}
 
 async function ensureLearnerDiscussionMenu(ctx: MutationCtx) {
   for (const name of ["Học viên", "Theo dõi lớp"]) {
@@ -133,6 +150,7 @@ export const ensureCatalog = mutation({
     const existing = await ctx.db.query("courses").withIndex("by_slug", (q) => q.eq("slug", COURSE.slug)).unique();
     if (existing) {
       await ensureLearnerDiscussionMenu(ctx);
+      await ensurePracticalInstructorGroupRow(ctx);
       await ensureSessionsBackfill(ctx);
       return { ok: true, seeded: false };
     }
@@ -208,8 +226,24 @@ export const ensureCatalog = mutation({
     for (const [key, locale, body] of CMS_BLOCKS) {
       await ctx.db.insert("cmsBlocks", { key, locale, body, updatedAt: createdAt });
     }
+    await ensurePracticalInstructorGroupRow(ctx);
     await ensureSessionsBackfill(ctx);
     return { ok: true, seeded: true };
+  },
+});
+
+/**
+ * Idempotent by the exact name "giảng viên dẫn giảng thực hành".
+ * Also runs from ensureCatalog on the next app request.
+ *
+ *   npx convex run seed:ensurePracticalInstructorGroup '{"secret":"<APP_SECRET>"}'
+ */
+export const ensurePracticalInstructorGroup = mutation({
+  args: { secret: v.string() },
+  handler: async (ctx, args) => {
+    gate(args.secret);
+    const group = await ensurePracticalInstructorGroupRow(ctx);
+    return { ok: true, ...group };
   },
 });
 

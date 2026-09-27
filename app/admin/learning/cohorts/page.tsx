@@ -19,6 +19,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
   const lessons = data.lessons;
   const courses = data.courses;
   const users = data.users;
+  const instructors = data.instructors;
   const roster = data.enrollments;
   const user = await getSession();
   const state = user?.role === "admin" ? await learningState(user.id) : null;
@@ -31,11 +32,11 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
       <p className="row-actions"><Link className="btn dark" href="/admin/learning/discussion">{t.menu["admin-discussion"]}</Link></p>
       {error && <p className="notice"><strong>{error}</strong></p>}
       {enrollNote && <p className="notice"><strong>{enrollNote}</strong></p>}
-      <CohortForm courses={courses} lessons={lessons} instructors={users} />
+      <CohortForm courses={courses} lessons={lessons} instructors={instructors} />
       {cohorts.map((cohort) => {
         const course = courses.find((item) => item.id === cohort.course_id);
         const members = roster.filter((row) => row.cohort_id === cohort.id);
-        const instructor = users.find((item) => item.id === cohort.instructor_id);
+        const instructor = cohort.instructor;
         const openUsers = users.filter((item) => !members.some((member) => member.user_id === item.id));
         const lessonCount = new Set(cohort.sessions.flatMap((session) => session.lesson_ids)).size;
         return (
@@ -44,7 +45,7 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
             <CohortForm
               courses={courses}
               lessons={lessons}
-              instructors={users}
+              instructors={withCurrentInstructor(instructors, cohort.instructor)}
               defaults={{
                 id: cohort.id,
                 name: cohort.name,
@@ -95,4 +96,9 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
       })}
     </main>
   );
+}
+
+function withCurrentInstructor<T extends { id: number }>(instructors: T[], current: T | null) {
+  if (!current || instructors.some((person) => person.id === current.id)) return instructors;
+  return [current, ...instructors];
 }

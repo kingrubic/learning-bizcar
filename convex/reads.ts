@@ -2,6 +2,7 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { classCatalog, cohortPlan, loadCatalog, type CatalogRow } from "./catalogScope";
 import { BMDO_SLUG, subsetProgress } from "./codes";
+import { PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { gate, passwordFlag, publicUser } from "./helpers";
 
 const secret = { secret: v.string() };
@@ -505,16 +506,22 @@ export const cohortsView = query({
     gate(args.secret);
     const orgs = await ctx.db.query("organizations").collect();
     const userDocs = await ctx.db.query("users").collect();
+    const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", PRACTICAL_INSTRUCTOR_GROUP)).unique();
+    const toPerson = (row: (typeof userDocs)[number]) => ({
+      id: row.legacyId,
+      display_name: row.displayName,
+      username: row.username,
+      role: row.role,
+      management_code: row.managementCode ?? "",
+    });
     const users = userDocs
       .filter((row) => row.active === 1)
       .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"))
-      .map((row) => ({
-        id: row.legacyId,
-        display_name: row.displayName,
-        username: row.username,
-        role: row.role,
-        management_code: row.managementCode ?? "",
-      }));
+      .map(toPerson);
+    const instructors = userDocs
+      .filter((row) => row.active === 1 && group != null && row.permissionGroupId === group.legacyId)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, "vi"))
+      .map(toPerson);
     const loaded = await loadCatalog(ctx);
     const catalog = loaded.lessons;
     const cohortDocs = await ctx.db.query("cohorts").collect();
@@ -532,6 +539,7 @@ export const cohortsView = query({
       });
     const cohorts = cohortDocs.map((row) => {
       const plan = cohortPlan(loaded, row);
+      const assigned = row.instructorId == null ? undefined : userDocs.find((user) => user.legacyId === row.instructorId);
       return {
         id: row.legacyId,
         name: row.name,
@@ -542,6 +550,7 @@ export const cohortsView = query({
         organization_id: row.organizationId,
         code: row.code ?? "",
         instructor_id: row.instructorId ?? null,
+        instructor: assigned ? toPerson(assigned) : null,
         sessions: plan.sessions.map((session) => ({
           title: session.title,
           session_date: session.sessionDate ?? "",
@@ -574,7 +583,7 @@ export const cohortsView = query({
         archived: row.archived,
         sort_order: row.sortOrder,
       }));
-    return { cohorts, lessons, courses, users, enrollments };
+    return { cohorts, lessons, courses, users, instructors, enrollments };
   },
 });
 

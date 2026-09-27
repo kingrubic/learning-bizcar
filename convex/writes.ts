@@ -1,10 +1,25 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { instructorAssignmentError, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode, normalizeSessionDrafts, slugFromCode } from "./codes";
 import { ensureClassChannel } from "./discussion";
-import { gate, nextId, now, passwordFlag } from "./helpers";
+import { gate, nextId, now, passwordFlag, userByLegacy } from "./helpers";
 
 const secret = { secret: v.string() };
+
+async function instructorError(ctx: MutationCtx, instructorId: number | null, existingInstructorId: number | null) {
+  if (instructorId == null || instructorId === existingInstructorId) {
+    return instructorAssignmentError({ instructorId, existingInstructorId, groupId: null, user: null });
+  }
+  const group = await ctx.db.query("permissionGroups").withIndex("by_name", (q) => q.eq("name", PRACTICAL_INSTRUCTOR_GROUP)).unique();
+  const user = await userByLegacy(ctx, instructorId);
+  return instructorAssignmentError({
+    instructorId,
+    existingInstructorId,
+    groupId: group?.legacyId ?? null,
+    user: user ? { active: user.active, permissionGroupId: user.permissionGroupId } : null,
+  });
+}
 
 function cleanCode(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "-");
@@ -376,8 +391,15 @@ export const saveCohort = mutation({
     if (!name) return { error: "Thiếu tên lớp." as const };
     const course = await ctx.db.query("courses").withIndex("by_legacy", (q) => q.eq("legacyId", args.courseId)).unique();
     if (!course) return { error: "Khoá không tồn tại." as const };
+    const editingId = args.cohortId;
+    const existing = editingId
+      ? await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", editingId)).unique()
+      : null;
+    if (editingId && !existing) return { error: "Lớp không tồn tại." as const };
+    const instructorMessage = await instructorError(ctx, args.instructorId, existing?.instructorId ?? null);
+    if (instructorMessage) return { error: instructorMessage };
     const instructor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.instructorId)).unique();
-    if (!instructor || instructor.active !== 1) return { error: "Chọn một giảng viên đang hoạt động." as const };
+    if (!instructor) return { error: "Chọn một giảng viên đang hoạt động." as const };
     const catalog = (await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", course.legacyId)).collect())
       .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number);
     const normalized = normalizeSessionDrafts(catalog.map((row) => ({ id: row.legacyId })), args.sessions);
@@ -392,11 +414,8 @@ export const saveCohort = mutation({
       if (await takenUserCode(ctx, instructorCode, instructor.legacyId)) return { error: "Mã giảng viên đã được dùng." as const };
       if (instructor.managementCode !== instructorCode) await ctx.db.patch(instructor._id, { managementCode: instructorCode, updatedAt: now() });
     } else await ensureUserCode(ctx, instructor.legacyId, instructorManagementCode(instructor.legacyId));
-    const cohortId = args.cohortId;
-    if (cohortId) {
-      const cohort = await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", cohortId)).unique();
-      if (!cohort) return { error: "Lớp không tồn tại." as const };
-      await ctx.db.patch(cohort._id, {
+    if (existing) {
+      await ctx.db.patch(existing._id, {
         name,
         courseId: course.legacyId,
         unlockMode: args.mode,
@@ -404,9 +423,9 @@ export const saveCohort = mutation({
         instructorId: instructor.legacyId,
         sessionsReady: 1,
       });
-      await replaceClassSessions(ctx, cohort.legacyId, normalized.sessions);
-      await log(ctx, args.actorId, "cohort_update", "cohort", String(cohort.legacyId), name);
-      return { id: cohort.legacyId };
+      await replaceClassSessions(ctx, existing.legacyId, normalized.sessions);
+      await log(ctx, args.actorId, "cohort_update", "cohort", String(existing.legacyId), name);
+      return { id: existing.legacyId };
     }
     const org = await ctx.db.query("organizations").withIndex("by_legacy").first();
     if (!org) return { error: "Chưa có tổ chức." as const };
