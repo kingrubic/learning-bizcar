@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: { bodySizeLimit: "22mb" },
   },
+  serverExternalPackages: ["mammoth", "unpdf"],
 };
 
 export default nextConfig;

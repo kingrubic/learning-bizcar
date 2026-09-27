@@ -27,6 +27,7 @@ export const MENUS: MenuItem[] = [
   { key: "map", label: "Learning Map", href: "/learn/course/bmdo-k03", area: "learn" },
   { key: "workbook", label: "Workbook", href: "/learn/workbook", area: "learn" },
   { key: "portfolio", label: "Portfolio", href: "/learn/portfolio", area: "learn" },
+  { key: "company", label: "Hồ sơ công ty", href: "/learn/company", area: "learn" },
   { key: "tasks", label: "Nhiệm vụ", href: "/learn/tasks", area: "learn" },
   { key: "discussion", label: "Thảo luận", href: "/learn/discussion", area: "learn" },
   { key: "admin-home", label: "Tổng quan", href: "/admin/learning", area: "admin" },
@@ -56,12 +57,12 @@ function withMenu(menus: MenuItem[], key: string) {
 export async function menusFor(user: SessionUser) {
   if (user.role === "admin" || user.role === "mod") {
     const base = user.role === "admin" ? MENUS : MENUS.filter((item) => !item.adminOnly);
-    return withMenu(withMenu(base, "discussion"), "admin-discussion");
+    return withMenu(withMenu(withMenu(base, "discussion"), "admin-discussion"), "company");
   }
   const menus = await learnerMenus(user);
   const state = await learningState(user.id);
   const learnAccess = menus.some((item) => item.area === "learn") || Boolean(state.enrollment);
-  const next = learnAccess ? withMenu(menus, "discussion") : menus;
+  const next = learnAccess ? withMenu(withMenu(menus, "discussion"), "company") : menus;
   return next.map((item) => item.key === "map" ? { ...item, href: `/learn/course/${state.course.slug}` } : item);
 }
 
