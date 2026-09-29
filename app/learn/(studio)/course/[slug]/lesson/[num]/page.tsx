@@ -10,6 +10,7 @@ import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
 import { getLocale } from "@/lib/locale";
 import { lessonPublished } from "@/lib/cms";
+import { VRIM, vrimStudioPath } from "@/lib/vrim-studio";
 
 export default async function LessonPage({ params }: { params: Promise<{ slug: string; num: string }> }) {
   const { slug, num } = await params;
@@ -65,6 +66,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       locale={await getLocale()}
       courseSlug={state.course.slug}
       courseCode={state.course.code}
+      extension={slug === VRIM.slug && number === VRIM.lessonNumber ? { href: vrimStudioPath(), label: VRIM.label } : undefined}
     />
   );
 }
