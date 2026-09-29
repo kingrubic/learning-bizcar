@@ -30,6 +30,7 @@ export function LessonExperience({
   showPhases = true,
   scopeClass,
   showSample = true,
+  extension,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -48,6 +49,7 @@ export function LessonExperience({
   showPhases?: boolean;
   scopeClass?: string;
   showSample?: boolean;
+  extension?: { href: string; label: string };
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -145,6 +147,12 @@ export function LessonExperience({
             <button type="button" className="btn" onClick={() => window.print()}>{t.print}</button>
           </div>
         </header>
+        {extension && (
+          <nav className="lesson-extend no-print" aria-label="Phần của buổi học">
+            <span className="on" aria-current="page">Workbook Buổi 04</span>
+            <Link href={extension.href}>{extension.label}</Link>
+          </nav>
+        )}
         {showPhases && <div className="phase-scroll" aria-label="Pha học tập">
           {phases.map((item) => (
             <button key={item.id} type="button" className={item.id === phase ? "on" : done.includes(item.id) ? "did" : ""} onClick={() => go(item.id)}>

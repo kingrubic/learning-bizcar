@@ -42,6 +42,7 @@
     "lib/instructor-group.check.ts",
     "lib/password-gate.check.ts",
     "lib/vabix-applier.check.ts",
-    "lib/babosora-applier.check.ts"
+    "lib/babosora-applier.check.ts",
+    "lib/vrim-studio.check.ts"
   ]
 }
