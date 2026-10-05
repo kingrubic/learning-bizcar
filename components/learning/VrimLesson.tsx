@@ -12,17 +12,19 @@ import {
   assess,
   deleteNode,
   importProfile,
-  isStudioDocument,
   legacyCacheKey,
   legacyFromCache,
   legacyLines,
+  loadStudio,
   node,
-  openStudio,
   progressOf,
   sampleState,
+  savePayload,
   setLink,
   studioCacheKey,
   summary,
+  tryStudio,
+  validateStudio,
   withOutline,
   type NodeType,
   type VrimNode,
@@ -35,7 +37,10 @@ const MODELS = ["Sản phẩm", "Dịch vụ", "Thuê bao", "Dự án", "Nền t
 const ADDRESSES: [string, string][] = [["AH", "AH · Hộ gia đình"], ["AR", "AR · Bán lẻ / bán lại"], ["AC", "AC · Doanh nghiệp"], ["other", "Loại khác / cần định nghĩa"]];
 
 type Props = {
+  /** New-version record (bmdo-k03-buoi04-vrim-v2). The only record this component writes. */
   initialAnswers: Record<string, unknown>;
+  /** Old record (bmdo-k03-buoi04-vrim-v1). Read-only. */
+  legacyAnswers: unknown;
   initialPhase: string;
   userId: number;
   serverUpdatedAt: string | null;
@@ -50,7 +55,10 @@ function esc(value: string) {
 }
 
 export function VrimLesson(props: Props) {
-  const [state, setState] = useState(() => openStudio(props.initialAnswers));
+  const [opened] = useState(() => loadStudio(props.initialAnswers, props.legacyAnswers));
+  const [state, setState] = useState(opened.state);
+  // A stored copy we could not read is kept as it is: autosave stays off so it is never overwritten.
+  const broken = useRef(opened.broken);
   const [phase, setPhase] = useState<PhaseId>(PHASES.includes(props.initialPhase as PhaseId) ? props.initialPhase as PhaseId : "overview");
   const [preview, setPreview] = useState(false);
   const [toast, setToast] = useState("");
@@ -122,8 +130,9 @@ export function VrimLesson(props: Props) {
         const parsed = JSON.parse(raw) as { dirty?: boolean; updatedAt?: string; answers?: unknown };
         const serverTime = props.serverUpdatedAt ? Date.parse(props.serverUpdatedAt) : 0;
         const cacheTime = parsed.updatedAt ? Date.parse(parsed.updatedAt) : 0;
-        if (parsed.dirty && cacheTime > serverTime && isStudioDocument(parsed.answers)) {
-          next = openStudio(parsed.answers);
+        const cached = parsed.dirty && cacheTime > serverTime ? tryStudio(parsed.answers) : null;
+        if (cached && !broken.current) {
+          next = { ...cached, legacy: stateRef.current.legacy };
           retry = true;
         }
       }
@@ -162,8 +171,21 @@ export function VrimLesson(props: Props) {
   async function writeSave() {
     if (!dirty.current || previewRef.current) return;
     const current = propsRef.current;
+    if (broken.current) {
+      current.onSaveState("offline");
+      return;
+    }
+    const payload = savePayload(stateRef.current);
+    try {
+      validateStudio(payload);
+    } catch (error) {
+      // Keep the edit on this device and leave the server copy untouched until the form is valid again.
+      window.localStorage.setItem(studioCacheKey(current.userId), JSON.stringify({ dirty: true, updatedAt: new Date().toISOString(), answers: payload }));
+      current.onSaveState("offline");
+      ping(`Chưa lưu lên máy chủ: ${error instanceof Error ? error.message : "dữ liệu chưa hợp lệ"}. Bài vẫn giữ trên thiết bị này.`);
+      return;
+    }
     dirty.current = false;
-    const payload = withOutline(stateRef.current);
     const reading = progressOf(payload);
     window.localStorage.setItem(studioCacheKey(current.userId), JSON.stringify({
       dirty: true, updatedAt: new Date().toISOString(), answers: payload,
@@ -222,6 +244,16 @@ export function VrimLesson(props: Props) {
     dirty.current = true;
     props.onSaveState("saving");
     await flush();
+  }
+
+  function downloadBroken() {
+    const blob = new Blob([JSON.stringify(broken.current, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `MyBizCar-VRIM-ban-luu-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function exportJson() {
@@ -299,6 +331,17 @@ export function VrimLesson(props: Props) {
           </div>
         </div>
       )}
+      {opened.broken != null && (
+        <div className="sample-banner no-print" role="alert">
+          <div>
+            <strong>Chưa mở được bản lưu V-RIM trên máy chủ</strong>
+            <span>Để không mất dữ liệu, tự động lưu đang tắt và bản lưu được giữ nguyên. Tải bản lưu gốc và gửi giảng viên hoặc bộ phận kỹ thuật.</span>
+          </div>
+          <div className="row-actions">
+            <button type="button" className="btn gold" onClick={downloadBroken}>Tải bản lưu gốc</button>
+          </div>
+        </div>
+      )}
       <div className="lesson-tools no-print">
         <button type="button" className="btn" onClick={openSample}>Xem bài mẫu</button>
         <button type="button" className="btn" onClick={exportJson}>Xuất JSON</button>
@@ -308,7 +351,7 @@ export function VrimLesson(props: Props) {
       {lines.length > 0 && (
         <details className="vl-legacy">
           <summary>Bài làm phiên bản cũ</summary>
-          <p className="vl-lead">Chỉ để xem. Bản V-RIM mới bắt đầu trống. Bài cũ vẫn nằm trong hồ sơ và không bị xóa.</p>
+          <p className="vl-lead">Chỉ để xem. Bản V-RIM mới lưu riêng và bắt đầu trống. Bài cũ vẫn nằm nguyên trong hồ sơ, không bị sửa hay xóa.</p>
           {lines.map((line) => <p key={`${line.label}:${line.value.slice(0, 24)}`}><strong>{line.label}.</strong> {line.value}</p>)}
         </details>
       )}

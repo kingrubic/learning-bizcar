@@ -34,6 +34,7 @@ export function LessonExperience({
   scopeClass,
   showSample = true,
   nativeStudio = false,
+  legacyAnswers = null,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -53,6 +54,8 @@ export function LessonExperience({
   scopeClass?: string;
   showSample?: boolean;
   nativeStudio?: boolean;
+  /** Read-only old record, shown by the native studio only. */
+  legacyAnswers?: unknown;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -161,6 +164,7 @@ export function LessonExperience({
           {nativeStudio ? (
             <VrimLesson
               initialAnswers={initialAnswers}
+              legacyAnswers={legacyAnswers}
               initialPhase={initialPhase}
               userId={userId}
               serverUpdatedAt={serverUpdatedAt}

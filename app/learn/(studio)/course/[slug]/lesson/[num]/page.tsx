@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answerFor, isLessonUnlocked, learningState } from "@/lib/access";
+import { answerFor, isLessonUnlocked, learningState, legacyAnswerFor } from "@/lib/access";
 import { BMDO_SLUG } from "@/convex/codes";
 import { lessonByNumber, type LessonMeta } from "@/lib/course";
 import { loadLessonSource } from "@/lib/lesson-source";
@@ -10,7 +10,6 @@ import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
 import { getLocale } from "@/lib/locale";
 import { lessonPublished } from "@/lib/cms";
-import { isStudioDocument } from "@/lib/vrim-lesson";
 
 export default async function LessonPage({ params }: { params: Promise<{ slug: string; num: string }> }) {
   const { slug, num } = await params;
@@ -40,9 +39,12 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
   const source = nativeStudio
     ? { css: "", html: "", script: "", scopeClass: "bizcar-lesson", showSample: false, showPhases: true }
     : loadLessonSource(number, { slug, storageKey: row.storage_key });
+  // Buổi 04 native studio: `saved` is the new-version record (its own answer key); the old record is
+  // loaded separately, read-only, for «Bài làm phiên bản cũ». Nothing here is written back to it.
+  const legacy = nativeStudio ? await legacyAnswerFor(user.id, row.id, slug) : undefined;
+  const legacyAnswers = legacy ? JSON.parse(legacy.answers_json) as unknown : null;
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
-  const freshStudio = nativeStudio && !isStudioDocument(answers);
-  const done = freshStudio ? [] : saved ? JSON.parse(saved.phases_done_json) as string[] : [];
+  const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
   const lessonNav = await Promise.all(rows.map(async (item) => ({
     number: item.number,
     code: String(item.number).padStart(2, "0"),
@@ -60,9 +62,9 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       lessons={lessonNav}
       source={{ css: source.css, html: source.html, script: source.script }}
       initialAnswers={answers}
-      initialPhase={freshStudio ? "overview" : saved?.current_phase || "overview"}
+      initialPhase={saved?.current_phase || "overview"}
       initialDone={done}
-      initialProgress={freshStudio ? 0 : saved?.progress_percent ?? 0}
+      initialProgress={saved?.progress_percent ?? 0}
       userId={user.id}
       serverUpdatedAt={saved?.updated_at ?? null}
       reviewEnabled={Boolean(enrollment?.review_enabled)}
@@ -71,6 +73,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       courseSlug={state.course.slug}
       courseCode={state.course.code}
       nativeStudio={nativeStudio}
+      legacyAnswers={legacyAnswers}
     />
   );
 }

@@ -47,8 +47,8 @@ export default async function LearnerDetail({ params, searchParams }: { params: 
         const data = JSON.parse(answer.answers_json) as unknown;
         const fields = (isVabixStorageKey(answer.storage_key) ? vabixFields(answer.number) : isBabosoraStorageKey(answer.storage_key) ? babosoraFields(answer.number) : (WORKBOOK[answer.number] ?? [])).map((field) => ({ ...field, value: readPath(data, field.path) })).filter((field) => field.value);
         return (
-          <section className="card" key={answer.number} style={{ marginTop: 12 }}>
-            <h3>Bài học {String(answer.number).padStart(2, "0")} · {answer.framework} · {answer.status} · {answer.progress_percent}% · {answer.current_phase}</h3>
+          <section className="card" key={`${answer.number}:${answer.legacy ? "old" : "new"}`} style={{ marginTop: 12 }}>
+            <h3>Bài học {String(answer.number).padStart(2, "0")} · {answer.framework}{answer.legacy ? " · phiên bản cũ (chỉ đọc)" : ""} · {answer.status} · {answer.progress_percent}% · {answer.current_phase}</h3>
             <p className="muted">Cập nhật {answer.updated_at}</p>
             {fields.map((field) => <p key={field.path}><strong>{field.label}.</strong> {field.value}</p>)}
           </section>

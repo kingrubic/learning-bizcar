@@ -2,6 +2,55 @@ export const BMDO_SLUG = "bmdo-k03";
 
 const DONE = new Set(["completed", "submitted", "reviewed"]);
 
+/**
+ * Lessons whose learner work moved to a new, separate record (table lessonAnswerVersions).
+ * Key: the lesson's storageKey. Value: the answer key of the new record.
+ * The lesson's old lessonAnswers row is never written again and is shown read-only.
+ */
+export const ANSWER_VERSIONS: Readonly<Record<string, string>> = {
+  "bmdo-k03-buoi04-vrim-v1": "bmdo-k03-buoi04-vrim-v2",
+};
+
+export function answerKeyFor(storageKey: string | null | undefined): string | null {
+  return storageKey && Object.hasOwn(ANSWER_VERSIONS, storageKey) ? ANSWER_VERSIONS[storageKey] : null;
+}
+
+/**
+ * For a lesson with a new answer key, only its new-version rows count (progress, status, admin views);
+ * its old rows come back separately as read-only legacy. Other lessons are unchanged.
+ */
+export function splitAnswerRows<T extends { lessonId: number }, V extends { lessonId: number; answerKey: string }>(
+  rows: T[],
+  versions: V[],
+  keyOfLesson: (lessonId: number) => string | null,
+): { active: (T | V)[]; legacy: T[] } {
+  const active: (T | V)[] = [];
+  const legacy: T[] = [];
+  for (const row of rows) (keyOfLesson(row.lessonId) ? legacy : active).push(row);
+  for (const row of versions) if (keyOfLesson(row.lessonId) === row.answerKey) active.push(row);
+  return { active, legacy };
+}
+
+/** Unlock gating only: a lesson already finished in its old version still opens the next session. */
+export function gateRows(active: { lessonId: number; status: string }[], legacy: { lessonId: number; status: string }[]) {
+  const byId = new Map(active.map((row) => [row.lessonId, row.status]));
+  for (const row of legacy) {
+    if (DONE.has(row.status) && !DONE.has(byId.get(row.lessonId) ?? "")) byId.set(row.lessonId, row.status);
+  }
+  return [...byId].map(([lessonId, status]) => ({ lessonId, status }));
+}
+
+/** Server-side shape check for a V-RIM 2.0 document; a broken payload is refused instead of saved. */
+export function isVersionedAnswerJson(answerKey: string, json: string) {
+  if (answerKey !== "bmdo-k03-buoi04-vrim-v2") return true;
+  try {
+    const raw = JSON.parse(json) as { version?: unknown; context?: unknown; nodes?: unknown };
+    return Boolean(raw && raw.version === 2 && raw.context && typeof raw.context === "object" && Array.isArray(raw.nodes));
+  } catch {
+    return false;
+  }
+}
+
 export function codeToken(value: string) {
   return value.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "");
 }

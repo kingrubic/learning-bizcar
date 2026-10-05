@@ -143,13 +143,6 @@ export const WORKBOOK: Record<number, WorkbookField[]> = {
     { path: "extract.principle", label: "Bài cũ · Nguyên tắc" },
     { path: "resolve.action", label: "Bài cũ · Kiểm chứng" },
     { path: "resolve.hypothesis", label: "Bài cũ · Giả thuyết" },
-    { path: "legacy.profile.company", label: "Bài cũ · Doanh nghiệp" },
-    { path: "legacy.practice.statement", label: "Bài cũ · Câu VBF" },
-    { path: "legacy.improve.before", label: "Bài cũ · VBF trước" },
-    { path: "legacy.improve.after", label: "Bài cũ · VBF sau" },
-    { path: "legacy.extract.principle", label: "Bài cũ · Nguyên tắc" },
-    { path: "legacy.resolve.action", label: "Bài cũ · Kiểm chứng" },
-    { path: "legacy.resolve.hypothesis", label: "Bài cũ · Giả thuyết" },
   ],
   5: [
     { path: "profile.company", label: "Doanh nghiệp" },

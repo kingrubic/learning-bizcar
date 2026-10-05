@@ -280,6 +280,56 @@ export function openStudio(raw: unknown): VrimState {
   }
 }
 
+/** Strict check that never throws: null when the document is not a valid V-RIM 2.0 file. */
+export function tryStudio(raw: unknown): VrimState | null {
+  if (!isStudioDocument(raw)) return null;
+  try {
+    return validateStudio(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Opens Buổi 04 from two separate records.
+ * - saved: the new-version record (answer key bmdo-k03-buoi04-vrim-v2). The only record the studio writes.
+ * - legacy: the old record (bmdo-k03-buoi04-vrim-v1). Read-only; shown under «Bài làm phiên bản cũ».
+ * A saved document that fails the strict check comes back as `broken` with an empty form, and the
+ * studio must not autosave, so the stored copy is never overwritten.
+ */
+export function loadStudio(saved: unknown, legacy: unknown): { state: VrimState; broken: unknown } {
+  let oldWork: unknown = hasLearnerText(legacy) ? legacy : null;
+  let earlier: VrimState | null = null;
+  if (isStudioDocument(legacy)) {
+    // Only a pre-release build of this lesson wrote V-RIM 2.0 into the old record. Show the old
+    // workbook it carried, and start the new record from its design instead of losing it from view.
+    const carried = (legacy as { legacy?: unknown }).legacy;
+    oldWork = hasLearnerText(carried) ? carried : null;
+    earlier = tryStudio(legacy);
+  }
+  let state: VrimState;
+  let broken: unknown = null;
+  if (isStudioDocument(saved)) {
+    const opened = tryStudio(saved);
+    state = opened ?? fresh();
+    if (!opened) broken = saved;
+  } else if (hasLearnerText(saved)) {
+    state = fresh();
+    broken = saved;
+  } else {
+    state = earlier ?? fresh();
+  }
+  state.legacy = oldWork;
+  return { state, broken };
+}
+
+/** What the studio sends to the new record. The old work is never copied into it. */
+export function savePayload(state: VrimState): VrimState {
+  const payload = withOutline(state);
+  payload.legacy = null;
+  return payload;
+}
+
 /** Device cache of the old workbook, used only when the server copy has no legacy text. */
 export function legacyFromCache(raw: string | null): unknown {
   if (!raw) return null;
@@ -293,7 +343,8 @@ export function legacyFromCache(raw: string | null): unknown {
 
 export function importProfile(raw: unknown, current: VrimState): VrimState {
   const next = validateStudio(raw);
-  if (!next.legacy) next.legacy = current.legacy;
+  // The old work always comes from the read-only old record, never from an imported file.
+  next.legacy = current.legacy;
   if (!workbookHasText(next.workbook)) next.workbook = clone(current.workbook);
   return next;
 }

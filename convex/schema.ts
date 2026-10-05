@@ -117,6 +117,23 @@ export default defineSchema({
     completedAt: v.union(v.string(), v.null()),
     updatedAt: v.string(),
   }).index("by_legacy", ["legacyId"]).index("by_user", ["userId"]).index("by_user_lesson", ["userId", "lessonId"]),
+  // New-version learner work for a lesson whose storage key is listed in ANSWER_VERSIONS (convex/codes.ts).
+  // The lesson's old lessonAnswers row is never written again; it stays as read-only history.
+  lessonAnswerVersions: defineTable({
+    legacyId: v.number(),
+    userId: v.number(),
+    courseId: v.number(),
+    lessonId: v.number(),
+    answerKey: v.string(),
+    schemaVersion: v.string(),
+    answersJson: v.string(),
+    currentPhase: v.string(),
+    phasesDoneJson: v.string(),
+    progressPercent: v.number(),
+    status: v.string(),
+    completedAt: v.union(v.string(), v.null()),
+    updatedAt: v.string(),
+  }).index("by_user", ["userId"]).index("by_user_lesson_key", ["userId", "lessonId", "answerKey"]),
   lessonSubmissions: defineTable({
     legacyId: v.number(),
     userId: v.number(),
@@ -129,6 +146,8 @@ export default defineSchema({
     progressPercent: v.number(),
     submittedAt: v.string(),
     reviewStatus: v.string(),
+    // Set when the snapshot came from lessonAnswerVersions.
+    answerKey: v.optional(v.string()),
   }).index("by_legacy", ["legacyId"]),
   coachFeedback: defineTable({
     legacyId: v.number(),
