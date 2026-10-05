@@ -81,6 +81,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       nativeStudio={nativeStudio}
       legacyAnswers={legacyAnswers}
       studioSource={studioSource}
+      standardShell={state.course.slug === BMDO_SLUG && !vabix && !babosora}
     />
   );
 }

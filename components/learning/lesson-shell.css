@@ -1,0 +1,50 @@
+/* Standard BMDO-K03 lesson header (components/learning/LessonShell.tsx). */
+.lesson-head { background: #fff; border: 1px solid var(--line); border-radius: 18px; padding: 18px 20px 14px; margin: 0 0 22px; display: grid; gap: 12px; }
+.lh-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.lh-id { min-width: 0; }
+.lh-kicker { margin: 0 0 4px; color: var(--gold-deep); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.lh-title { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 750; color: var(--ink); }
+.lh-title span { color: var(--muted); font-weight: 600; }
+.lh-tools { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.lh-tools:empty { display: none; }
+.lh-tools .btn { border-color: var(--line); background: #fff; min-height: 38px; font-size: 13px; }
+.lh-tools .btn:hover { border-color: var(--ink); }
+.lh-tools label.btn { cursor: pointer; }
+.lh-wheel { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.lh-wheel-name { font-size: 12px; font-weight: 700; color: var(--muted); margin-right: 4px; }
+.lh-chip { font-size: 12px; border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px; color: var(--ink); background: var(--paper); text-decoration: none; white-space: nowrap; }
+.lh-chip b { font-weight: 750; }
+.lh-chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.lh-chip.locked { opacity: 0.5; }
+a.lh-chip:hover { border-color: var(--ink); }
+.lh-steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+.lh-steps li { flex: 1 0 auto; }
+.lh-step { width: 100%; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 10px; padding: 7px 10px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; min-height: 38px; }
+.lh-step:hover { border-color: var(--ink); }
+.lh-letter { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 99px; background: var(--paper); font-size: 11px; font-weight: 800; flex: 0 0 auto; }
+.lh-step.done { border-color: var(--green, #1f6b45); }
+.lh-step.done .lh-letter { background: var(--green, #1f6b45); color: #fff; }
+.lh-step.current { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 700; }
+.lh-step.current .lh-letter { background: var(--gold); color: #1a1408; }
+.lh-progress { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; font-size: 12px; color: var(--muted); }
+.lh-progress b { color: var(--ink); }
+.lh-track { height: 7px; background: var(--soft, #efe8d8); border-radius: 99px; overflow: hidden; }
+.lh-track div { height: 100%; background: var(--gold); transition: width .3s ease; }
+@media (max-width: 760px) {
+  .lesson-head { padding: 14px 14px 12px; border-radius: 14px; margin-bottom: 16px; gap: 10px; }
+  .lh-title { font-size: 19px; }
+  .lh-tools { justify-content: flex-start; width: 100%; }
+  .lh-tools .btn { flex: 1 1 auto; }
+  .lh-wheel { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .lh-steps li { flex: 0 0 auto; }
+  .lh-step .lh-label { font-size: 12px; }
+  .lh-progress { grid-template-columns: 1fr auto; }
+  .lh-progress > span { grid-column: 1 / -1; }
+}
+@media print {
+  .lesson-head { border: 0; padding: 0 0 8px; }
+  .lh-progress { display: none; }
+}
+@media (max-width: 760px) {
+  .lh-wheel-name { display: none; }
+}

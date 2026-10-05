@@ -37,6 +37,8 @@ export function loadLessonSource(number: number, course?: { slug?: string; stora
 ;try{window.clearData=typeof clearData==='function'?clearData:(typeof resetData==='function'?resetData:undefined)}catch(e){}
 ;try{window.__bizcarShow=window.show}catch(e){}
 ;try{window.__bizcarState=function(){return state}}catch(e){}
+;if(typeof window.show!=='function'){window.show=function(id){var b=document.querySelector('[data-panel-btn="'+id+'"]')||document.querySelector('[data-go="'+id+'"]')||document.querySelector('[data-target="'+id+'"]');if(b)b.click()};window.__bizcarShow=window.show}
+;if(typeof window.exportJSON!=='function'&&document.querySelector('#exportBtn')){window.exportJSON=function(){document.querySelector('#exportBtn').click()}}
 `;
   return {
     css: scopeCss(css, ".bizcar-lesson"),

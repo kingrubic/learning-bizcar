@@ -70,8 +70,15 @@ export function mountStudio(options: HostOptions): StudioHost {
     key: () => null,
     get length() { return memory.size; },
   };
+  // The studio keeps its own document.title; the page title (set by the app) is never changed.
+  let studioTitle = document.title;
   const scoped = new Proxy(document, {
+    set(target, prop, value) {
+      if (prop === "title") { studioTitle = String(value); return true; }
+      return Reflect.set(target, prop, value, target);
+    },
     get(target, prop) {
+      if (prop === "title") return studioTitle;
       if (prop === "querySelector") return (selector: string) => root.querySelector(selector);
       if (prop === "querySelectorAll") return (selector: string) => root.querySelectorAll(selector);
       if (prop === "getElementById") return (id: string) => root.querySelector(`#${CSS.escape(id)}`);
@@ -81,14 +88,25 @@ export function mountStudio(options: HostOptions): StudioHost {
     },
   });
   const location = { hash: "", href: "", pathname: "", search: "", reload: () => {} };
+  // `window.document` / `window.localStorage` / `window.location` resolve to the same sandboxed objects.
+  const scopedWindow = new Proxy(window, {
+    get(target, prop) {
+      if (prop === "document") return scoped;
+      if (prop === "localStorage") return storage;
+      if (prop === "location") return location;
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" && !/^[A-Z]/.test(String(prop)) ? value.bind(target) : value;
+    },
+    set(target, prop, value) { return Reflect.set(target, prop, value, target); },
+  });
   const hook: Hook = {};
   const tail = `
 ;__host.step = function () { try { return Number(${config.readStep}); } catch (e) { return 0; } };
 ;__host.go = function (i) { ${config.writeStep}; render(); };
 ;__host.doc = function () { return ${config.stateVar}; };`;
   try {
-    const run = new Function("localStorage", "location", "document", "crypto", "__host", `${options.script}\n${tail}`);
-    run(storage, location, scoped, cryptoShim(), hook);
+    const run = new Function("localStorage", "location", "document", "crypto", "__host", "window", `${options.script}\n${tail}`);
+    run(storage, location, scoped, cryptoShim(), hook, scopedWindow);
   } catch (error) {
     options.onError?.(error instanceof Error ? error.message : String(error));
   }

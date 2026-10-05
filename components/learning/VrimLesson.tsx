@@ -3,6 +3,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { PhaseId } from "@/lib/course";
 import type { SaveState } from "./LessonStage";
+import { LessonTools } from "./LessonShell";
 import {
   LIBRARY,
   NAMES,
@@ -269,7 +270,8 @@ export function VrimLesson(props: Props) {
   function printReport() {
     const popup = window.open("", "_blank");
     if (!popup) {
-      ping("Trình duyệt chặn cửa sổ in. Dùng nút In / PDF trên thanh bài học.");
+      ping("Trình duyệt chặn cửa sổ in hồ sơ, nên in trang bài học thay thế.");
+      window.print();
       return;
     }
     const review = assess(state);
@@ -342,12 +344,10 @@ export function VrimLesson(props: Props) {
           </div>
         </div>
       )}
-      <div className="lesson-tools no-print">
+      <LessonTools onExport={exportJson} onPrint={printReport}>
         <button type="button" className="btn" onClick={openSample}>Xem bài mẫu</button>
-        <button type="button" className="btn" onClick={exportJson}>Xuất JSON</button>
         <label className="btn">Nhập JSON<input className="sr-only" type="file" accept="application/json" onChange={(event) => { void onImport(event.target.files?.[0]); event.target.value = ""; }} /></label>
-        <button type="button" className="btn" onClick={printReport}>In hồ sơ</button>
-      </div>
+      </LessonTools>
       {lines.length > 0 && (
         <details className="vl-legacy">
           <summary>Bài làm phiên bản cũ</summary>
