@@ -44,6 +44,7 @@
     "lib/vabix-applier.check.ts",
     "lib/babosora-applier.check.ts",
     "lib/vrim-lesson.check.ts",
-    "lib/bmdo-studios.check.ts"
+    "lib/bmdo-studios.check.ts",
+    "lib/bmdo-shell.check.tsx"
   ]
 }

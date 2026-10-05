@@ -303,8 +303,9 @@ th { font-size: 11px; letter-spacing: 0.08em; line-height: 1.4; text-transform: 
   .map-card { min-height: 0; }
   .field input, .field textarea, .field select, .bizcar-lesson input, .bizcar-lesson textarea, .bizcar-lesson select { font-size: 16px; }
   .bizcar-lesson .hero-grid, .bizcar-lesson .g2, .bizcar-lesson .g3, .bizcar-lesson .profile, .bizcar-lesson .wheel-flow, .bizcar-lesson .grid.g2, .bizcar-lesson .grid.g3 {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
+  .bizcar-lesson .card { min-width: 0; }
   .bizcar-lesson .content { padding: 8px 0 32px !important; }
   .bizcar-lesson h1 { font-size: 30px !important; }
   .bizcar-lesson h2 { font-size: 24px !important; }

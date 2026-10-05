@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PhaseId } from "@/lib/course";
 import type { SaveState } from "./LessonStage";
+import { LessonTools } from "./LessonShell";
 import { mountStudio, type StudioHost } from "@/lib/studios/host";
 import { STUDIO_STEPS, emptyEnvelope, isEnvelope, studioProgress, type StudioConfig, type StudioEnvelope } from "@/lib/studios/registry";
 import { studioDocError, validateEnvelope } from "@/lib/studios/validate";
@@ -232,6 +233,15 @@ export function StudioLesson(props: Props) {
   }, [config.id]);
 
   const inStudio = STUDIO_STEPS.includes(phase);
+  // Header buttons of every studio: 0 = export, 1 = import, 2 = print («In …») or the studio's own sheet.
+  const exportAction = actions[0];
+  const printAction = actions.slice(2).find((action) => /^In\b/i.test(action.label));
+  const extraActions = actions.slice(1).filter((action) => action !== printAction);
+  function runInStudio(index: number) {
+    if (inStudio) { hostRef.current?.runAction(index); return; }
+    show(phase === "report" ? "resolve" : "activate");
+    window.setTimeout(() => hostRef.current?.runAction(index), 0);
+  }
   const code = String(config.lesson).padStart(2, "0");
 
   return (
@@ -251,7 +261,6 @@ export function StudioLesson(props: Props) {
 
       {phase === "overview" && (
         <section className="studio-panel">
-          <div className="studio-kicker">Buổi {code} · {config.title} / {config.framework} · APPLIER</div>
           <h1>{config.title} Studio</h1>
           {config.intro.map((item) => <p key={item.slice(0, 32)} className="studio-lead">{item}</p>)}
           <ol className="studio-steps">
@@ -289,11 +298,15 @@ export function StudioLesson(props: Props) {
         </section>
       )}
 
-      <div className="lesson-tools studio-tools no-print" hidden={!inStudio}>
-        {actions.map((action) => (
-          <button key={action.index} type="button" className="btn" onClick={() => hostRef.current?.runAction(action.index)}>{action.label}</button>
+      {/* Standard toolbar: the studio's own header buttons, in the shell's order and labels. */}
+      <LessonTools
+        onExport={() => { if (exportAction) hostRef.current?.runAction(exportAction.index); }}
+        onPrint={() => { if (printAction) runInStudio(printAction.index); else window.print(); }}
+      >
+        {extraActions.map((action) => (
+          <button key={action.index} type="button" className="btn" onClick={() => runInStudio(action.index)}>{action.index === 1 ? "Nhập JSON" : action.label}</button>
         ))}
-      </div>
+      </LessonTools>
       <div ref={rootRef} className="bmdo-studio" hidden={!inStudio} />
     </div>
   );

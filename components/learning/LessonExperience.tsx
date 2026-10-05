@@ -11,6 +11,8 @@ import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
 import { NotificationBell } from "@/components/brand/NotificationBell";
 import { messages, type Locale } from "@/lib/i18n";
 import { studioForLesson } from "@/lib/studios/registry";
+import { LessonHeader, LessonToolsContext } from "./LessonShell";
+import "./lesson-shell.css";
 import type { StudioSource } from "@/lib/studios/source";
 
 const VrimLesson = dynamic(() => import("./VrimLesson").then((mod) => mod.VrimLesson));
@@ -39,6 +41,7 @@ export function LessonExperience({
   nativeStudio = false,
   legacyAnswers = null,
   studioSource = null,
+  standardShell = false,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -62,6 +65,8 @@ export function LessonExperience({
   legacyAnswers?: unknown;
   /** Original studio file for a BMDO-K03 native studio lesson (lib/studios/registry.ts). */
   studioSource?: StudioSource | null;
+  /** BMDO-K03: the standard lesson header and toolbar (components/learning/LessonShell.tsx). */
+  standardShell?: boolean;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -73,6 +78,7 @@ export function LessonExperience({
   const [savedAt, setSavedAt] = useState("");
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState("");
+  const [toolsSlot, setToolsSlot] = useState<HTMLElement | null>(null);
 
   function go(next: PhaseId) {
     setPhase(next);
@@ -156,10 +162,10 @@ export function LessonExperience({
               }}
             />
             <LocaleSwitch locale={locale} />
-            <button type="button" className="btn" onClick={() => window.print()}>{t.print}</button>
+            {!standardShell && <button type="button" className="btn" onClick={() => window.print()}>{t.print}</button>}
           </div>
         </header>
-        {showPhases && <div className="phase-scroll" aria-label="Pha học tập">
+        {showPhases && !standardShell && <div className="phase-scroll" aria-label="Pha học tập">
           {phases.map((item) => (
             <button key={item.id} type="button" className={item.id === phase ? "on" : done.includes(item.id) ? "did" : ""} onClick={() => go(item.id)}>
               {t.phases[item.id]}
@@ -167,6 +173,21 @@ export function LessonExperience({
           ))}
         </div>}
         <div className="shell-content">
+          {standardShell && (
+            <LessonHeader
+              lesson={lesson}
+              lessons={lessons}
+              courseSlug={courseSlug}
+              phases={phases}
+              phase={phase}
+              done={done}
+              progress={progress}
+              onGo={go}
+              t={t}
+              toolsRef={setToolsSlot}
+            />
+          )}
+          <LessonToolsContext.Provider value={standardShell ? { slot: toolsSlot, exportLabel: t.shellExport, printLabel: t.print } : null}>
           {studioSource && studioForLesson(lesson.number) ? (
             <StudioLesson
               config={studioForLesson(lesson.number)!}
@@ -213,6 +234,7 @@ export function LessonExperience({
               showSample={showSample}
             />
           )}
+          </LessonToolsContext.Provider>
         </div>
       </div>
     </div>

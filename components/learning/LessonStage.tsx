@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { PhaseId } from "@/lib/course";
+import { PHASES, type PhaseId } from "@/lib/course";
+import { LessonTools } from "./LessonShell";
 
 export type SaveState = "idle" | "saving" | "saved" | "offline" | "preview";
 
@@ -80,6 +81,10 @@ export function LessonStage(props: Props) {
     root.prepend(style);
 
     delete window.__bizcarProgress;
+    // Hooks left by the previous lesson must not leak into this one (each script sets its own).
+    if (scope === "bizcar-lesson") {
+      for (const name of ["show", "sample", "toggleMenu", "exportJSON", "clearData", "__bizcarShow", "__bizcarState"] as const) delete window[name];
+    }
     const key = current.storageKey;
     const localCache = window.localStorage.getItem(cacheKey(current.userId, key));
     let seed = JSON.stringify(current.initialAnswers ?? {});
@@ -124,8 +129,15 @@ export function LessonStage(props: Props) {
 
     const fakeLocation = { hash: "", reload: () => setGeneration((n) => n + 1) };
     const realDocument = document;
+    let lessonTitle = realDocument.title;
     const scopedDocument = new Proxy(realDocument, {
+      set(target, prop, value) {
+        // The lesson keeps its own title; the page title is never changed by lesson code.
+        if (prop === "title") { lessonTitle = String(value); return true; }
+        return Reflect.set(target, prop, value, target);
+      },
       get(target, prop, receiver) {
+        if (prop === "title") return lessonTitle;
         if (prop === "querySelector") return (selector: string) => root.querySelector(selector);
         if (prop === "querySelectorAll") return (selector: string) => root.querySelectorAll(selector);
         if (prop === "getElementById") return (id: string) => root.querySelector(`#${CSS.escape(id)}`);
@@ -148,6 +160,13 @@ export function LessonStage(props: Props) {
       window.__bizcarShow(phase);
     }
     publish();
+    // Keep the shell header in step when the lesson's own buttons change panel (no save involved).
+    let frame = 0;
+    const observer = new MutationObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(publish);
+    });
+    if (scope === "bizcar-lesson") observer.observe(root, { subtree: true, attributes: true, attributeFilter: ["class"] });
 
     async function flush(value: string) {
       dirty = false;
@@ -184,6 +203,8 @@ export function LessonStage(props: Props) {
     }
 
     return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
       clearTimeout(timer);
       if (dirty && !previewRef.current) void flush(memory.get(key) ?? "{}");
       root.innerHTML = "";
@@ -227,6 +248,19 @@ export function LessonStage(props: Props) {
     setGeneration((n) => n + 1);
   }
 
+  function exportAnswers() {
+    if (typeof window.exportJSON === "function") { window.exportJSON(); return; }
+    const value = memory.get(props.storageKey) ?? "{}";
+    const url = URL.createObjectURL(new Blob([JSON.stringify(safeParse(value), null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `BMDO-Buoi${String(props.lessonNumber).padStart(2, "0")}-${props.storageKey}.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  const sampleButton = <button type="button" className="btn" onClick={openSample}>{props.sampleLabel ?? "Xem bài mẫu"}</button>;
+
   return (
     <div>
       {preview && (
@@ -241,11 +275,13 @@ export function LessonStage(props: Props) {
           </div>
         </div>
       )}
-      {props.showSample !== false && (
-        <div className="lesson-tools no-print">
-          <button type="button" className="btn" onClick={openSample}>{props.sampleLabel ?? "Xem bài mẫu"}</button>
-        </div>
-      )}
+      <LessonTools
+        onExport={exportAnswers}
+        onPrint={() => window.print()}
+        fallback={props.showSample !== false && <div className="lesson-tools no-print">{sampleButton}</div>}
+      >
+        {props.showSample !== false && sampleButton}
+      </LessonTools>
       <div ref={rootRef} className={props.scopeClass || "bizcar-lesson"} />
     </div>
   );
@@ -265,9 +301,22 @@ function safeParse(value: string) {
   catch { return {}; }
 }
 
+const PHASE_IDS = new Set<string>(PHASES.map((item) => item.id));
+
+/** Current phase: `.panel.active` (most lessons) or `.section.active` (Buổi 18). A sub-step panel that is
+ * not one of the shell phases (e.g. Buổi 18 «rfe», «mds») counts as the shell phase before it. */
+function activePhase(root: HTMLElement): PhaseId {
+  const panels = [...root.querySelectorAll<HTMLElement>(".panel, section.section")];
+  const at = panels.findIndex((panel) => panel.classList.contains("active"));
+  for (let index = at; index >= 0; index -= 1) {
+    const id = panels[index].id || panels[index].getAttribute("data-panel") || "";
+    if (PHASE_IDS.has(id)) return id as PhaseId;
+  }
+  return "overview";
+}
+
 function readDom(root: HTMLElement) {
-  const active = root.querySelector(".panel.active");
-  const phase = (active?.id || active?.getAttribute("data-panel") || "overview") as PhaseId;
+  const phase = activePhase(root);
   const buttons = [...root.querySelectorAll<HTMLElement>(".nav[data-target], .nav-btn[data-target], [data-panel-btn]")];
   const done = buttons.filter((button) => button.classList.contains("done") || button.querySelector(".done")?.textContent?.includes("✓")).map((button) => (button.dataset.target || button.dataset.panelBtn) as PhaseId);
   const text = root.querySelector("#progressText, #progressLabel, #saveState, #progressKpi, #sideProgress")?.textContent ?? "";
