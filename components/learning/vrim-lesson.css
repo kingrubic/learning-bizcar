@@ -1,0 +1,82 @@
+.vrim-lesson { display: grid; gap: 16px; }
+.vrim-lesson .lesson-tools { flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+.vrim-lesson .lesson-tools .btn { display: inline-flex; align-items: center; }
+.vrim-lesson .btn { border: 1px solid var(--line); background: #fff; min-height: 44px; }
+.vrim-lesson .btn.dark { background: var(--ink); color: #fff; border-color: var(--ink); }
+.vrim-lesson .btn.gold { background: var(--gold); color: #1a1408; border-color: var(--gold); }
+.vrim-lesson h1 { font-size: clamp(30px, 4vw, 46px); margin: 0 0 8px; }
+.vrim-lesson h2 { font-size: 22px; margin: 0 0 8px; }
+.vrim-lesson h3 { font-size: 16px; margin: 0 0 6px; }
+.vrim-lesson .vl-panel { display: none; }
+.vrim-lesson .vl-panel.on { display: grid; gap: 14px; }
+.vrim-lesson .vl-kicker { color: var(--gold-deep); font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.vrim-lesson .vl-lead { color: var(--muted); margin: 0; max-width: 68ch; }
+.vrim-lesson .vl-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.vrim-lesson .vl-grid, .vrim-lesson .vl-grid-3, .vrim-lesson .vl-split { display: grid; gap: 12px; }
+.vrim-lesson .vl-grid { grid-template-columns: 1fr 1fr; }
+.vrim-lesson .vl-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.vrim-lesson .vl-split { grid-template-columns: minmax(260px, 440px) minmax(0, 1fr); align-items: start; }
+.vrim-lesson .vl-field { display: grid; gap: 6px; margin: 8px 0; font-size: 13px; font-weight: 700; }
+.vrim-lesson .vl-field input, .vrim-lesson .vl-field textarea, .vrim-lesson .vl-field select {
+  width: 100%; border: 1px solid #cbc4b7; border-radius: 8px; background: #fff; padding: 10px 12px; font-weight: 500;
+}
+.vrim-lesson .vl-field textarea { min-height: 84px; resize: vertical; }
+.vrim-lesson .vl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vrim-lesson .vl-actions .btn, .vrim-lesson .vl-choice, .vrim-lesson .vl-seg button, .vrim-lesson .vl-add button {
+  min-height: 44px;
+}
+.vrim-lesson .vl-next { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+.vrim-lesson .vl-hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; align-items: center; }
+.vrim-lesson .vl-wheel { width: min(100%, 440px); height: auto; display: block; margin: 0 auto; }
+.vrim-lesson .vl-wheel [data-pick] { cursor: pointer; }
+.vrim-lesson .vl-def { border-top: 4px solid var(--green); }
+.vrim-lesson .vl-def.b { border-top-color: var(--gold); }
+.vrim-lesson .vl-def.f { border-top-color: #5467a6; }
+.vrim-lesson .vl-def span, .vrim-lesson .vl-pill {
+  display: inline-grid; place-items: center; min-width: 28px; height: 28px; border-radius: 99px;
+  background: var(--green); color: #fff; font-weight: 800; font-size: 13px; padding: 0 8px;
+}
+.vrim-lesson .vl-pill.b, .vrim-lesson .vl-def.b span { background: var(--gold); color: #1a1408; }
+.vrim-lesson .vl-pill.f, .vrim-lesson .vl-def.f span { background: #5467a6; }
+.vrim-lesson .vl-flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.vrim-lesson .vl-examples { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.vrim-lesson .vl-chain { display: grid; gap: 8px; }
+.vrim-lesson .vl-chain div { display: grid; grid-template-columns: 36px 1fr; gap: 8px; align-items: start; }
+.vrim-lesson .vl-warn { color: var(--red); }
+.vrim-lesson .vl-node { border-left: 4px solid var(--green); }
+.vrim-lesson .vl-node.b { border-left-color: var(--gold); }
+.vrim-lesson .vl-node.f { border-left-color: #5467a6; }
+.vrim-lesson .vl-checks { display: grid; gap: 6px; }
+.vrim-lesson .vl-checks label { display: flex; gap: 8px; align-items: flex-start; font-weight: 500; min-height: 44px; }
+.vrim-lesson .vl-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.vrim-lesson .vl-seg button.on { background: var(--ink); color: #fff; }
+.vrim-lesson .vl-choice { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 8px 12px; font-weight: 700; }
+.vrim-lesson .vl-choice.ok { background: #e7f3ec; border-color: var(--green); }
+.vrim-lesson .vl-choice.no { background: #f8ecea; border-color: var(--red); }
+.vrim-lesson .vl-legacy { background: var(--soft); border-radius: 12px; padding: 12px 14px; }
+.vrim-lesson .vl-legacy summary { cursor: pointer; font-weight: 750; min-height: 44px; display: flex; align-items: center; }
+.vrim-lesson .vl-issue { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+.vrim-lesson .vl-stats { display: flex; gap: 16px; }
+.vrim-lesson .vl-stats b { display: block; font-size: 22px; }
+.vrim-lesson .vl-stats span { color: var(--muted); font-size: 12px; }
+.vrim-lesson pre { white-space: pre-wrap; font: inherit; background: var(--soft); border-radius: 8px; padding: 12px; }
+.vrim-lesson .vl-toast {
+  position: sticky; bottom: 12px; justify-self: end; background: var(--ink); color: #fff;
+  border-radius: 8px; padding: 10px 14px; max-width: min(420px, 100%);
+}
+.vrim-lesson .vl-callout { background: var(--ink); color: #fff; border-radius: 12px; padding: 14px 16px; }
+.vrim-lesson .vl-callout b { color: var(--gold-2); }
+@media (max-width: 800px) {
+  .vrim-lesson .vl-grid, .vrim-lesson .vl-grid-3, .vrim-lesson .vl-split, .vrim-lesson .vl-hero, .vrim-lesson .vl-examples {
+    grid-template-columns: 1fr;
+  }
+  .vrim-lesson .vl-field input, .vrim-lesson .vl-field textarea, .vrim-lesson .vl-field select { font-size: 16px; }
+  .vrim-lesson .vl-next { align-items: stretch; }
+  .vrim-lesson .vl-next .btn { width: 100%; }
+}
+@media print {
+  .vrim-lesson .vl-panel { display: block !important; break-before: page; }
+  .vrim-lesson .vl-panel:first-of-type { break-before: auto; }
+  .vrim-lesson .no-print, .vrim-lesson .vl-toast { display: none !important; }
+  .vrim-lesson .vl-card, .vrim-lesson .vl-node { break-inside: avoid; }
+}

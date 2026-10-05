@@ -10,7 +10,7 @@ import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
 import { getLocale } from "@/lib/locale";
 import { lessonPublished } from "@/lib/cms";
-import { VRIM, vrimStudioPath } from "@/lib/vrim-studio";
+import { isStudioDocument } from "@/lib/vrim-lesson";
 
 export default async function LessonPage({ params }: { params: Promise<{ slug: string; num: string }> }) {
   const { slug, num } = await params;
@@ -36,9 +36,13 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
     ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
     : meta;
   const saved = await answerFor(user.id, row.id, slug);
-  const source = loadLessonSource(number, { slug, storageKey: row.storage_key });
+  const nativeStudio = state.course.slug === BMDO_SLUG && number === 4;
+  const source = nativeStudio
+    ? { css: "", html: "", script: "", scopeClass: "bizcar-lesson", showSample: false, showPhases: true }
+    : loadLessonSource(number, { slug, storageKey: row.storage_key });
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
-  const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
+  const freshStudio = nativeStudio && !isStudioDocument(answers);
+  const done = freshStudio ? [] : saved ? JSON.parse(saved.phases_done_json) as string[] : [];
   const lessonNav = await Promise.all(rows.map(async (item) => ({
     number: item.number,
     code: String(item.number).padStart(2, "0"),
@@ -56,9 +60,9 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       lessons={lessonNav}
       source={{ css: source.css, html: source.html, script: source.script }}
       initialAnswers={answers}
-      initialPhase={saved?.current_phase || "overview"}
+      initialPhase={freshStudio ? "overview" : saved?.current_phase || "overview"}
       initialDone={done}
-      initialProgress={saved?.progress_percent ?? 0}
+      initialProgress={freshStudio ? 0 : saved?.progress_percent ?? 0}
       userId={user.id}
       serverUpdatedAt={saved?.updated_at ?? null}
       reviewEnabled={Boolean(enrollment?.review_enabled)}
@@ -66,7 +70,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       locale={await getLocale()}
       courseSlug={state.course.slug}
       courseCode={state.course.code}
-      extension={slug === VRIM.slug && number === VRIM.lessonNumber ? { href: vrimStudioPath(), label: VRIM.label } : undefined}
+      nativeStudio={nativeStudio}
     />
   );
 }
