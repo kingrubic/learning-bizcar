@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { answerFor, isLessonUnlocked, learningState } from "@/lib/access";
+import { answerFor, isLessonUnlocked, learningState, legacyAnswerFor } from "@/lib/access";
 import { BMDO_SLUG } from "@/convex/codes";
 import { lessonByNumber, type LessonMeta } from "@/lib/course";
 import { loadLessonSource } from "@/lib/lesson-source";
@@ -10,7 +10,6 @@ import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
 import { getLocale } from "@/lib/locale";
 import { lessonPublished } from "@/lib/cms";
-import { VRIM, vrimStudioPath } from "@/lib/vrim-studio";
 
 export default async function LessonPage({ params }: { params: Promise<{ slug: string; num: string }> }) {
   const { slug, num } = await params;
@@ -36,7 +35,14 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
     ? { ...meta, title: row.title, framework: row.framework, summary: row.summary, storageKey: row.storage_key }
     : meta;
   const saved = await answerFor(user.id, row.id, slug);
-  const source = loadLessonSource(number, { slug, storageKey: row.storage_key });
+  const nativeStudio = state.course.slug === BMDO_SLUG && number === 4;
+  const source = nativeStudio
+    ? { css: "", html: "", script: "", scopeClass: "bizcar-lesson", showSample: false, showPhases: true }
+    : loadLessonSource(number, { slug, storageKey: row.storage_key });
+  // Buổi 04 native studio: `saved` is the new-version record (its own answer key); the old record is
+  // loaded separately, read-only, for «Bài làm phiên bản cũ». Nothing here is written back to it.
+  const legacy = nativeStudio ? await legacyAnswerFor(user.id, row.id, slug) : undefined;
+  const legacyAnswers = legacy ? JSON.parse(legacy.answers_json) as unknown : null;
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
   const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
   const lessonNav = await Promise.all(rows.map(async (item) => ({
@@ -66,7 +72,8 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       locale={await getLocale()}
       courseSlug={state.course.slug}
       courseCode={state.course.code}
-      extension={slug === VRIM.slug && number === VRIM.lessonNumber ? { href: vrimStudioPath(), label: VRIM.label } : undefined}
+      nativeStudio={nativeStudio}
+      legacyAnswers={legacyAnswers}
     />
   );
 }

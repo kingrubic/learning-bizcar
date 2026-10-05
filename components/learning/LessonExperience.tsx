@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { phasesFor, type LessonMeta, type PhaseId } from "@/lib/course";
@@ -9,6 +10,8 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
 import { NotificationBell } from "@/components/brand/NotificationBell";
 import { messages, type Locale } from "@/lib/i18n";
+
+const VrimLesson = dynamic(() => import("./VrimLesson").then((mod) => mod.VrimLesson));
 
 type LessonLink = { number: number; code: string; title: string; framework: string; status: string; unlocked: boolean };
 
@@ -30,7 +33,8 @@ export function LessonExperience({
   showPhases = true,
   scopeClass,
   showSample = true,
-  extension,
+  nativeStudio = false,
+  legacyAnswers = null,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -49,7 +53,9 @@ export function LessonExperience({
   showPhases?: boolean;
   scopeClass?: string;
   showSample?: boolean;
-  extension?: { href: string; label: string };
+  nativeStudio?: boolean;
+  /** Read-only old record, shown by the native studio only. */
+  legacyAnswers?: unknown;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -147,12 +153,6 @@ export function LessonExperience({
             <button type="button" className="btn" onClick={() => window.print()}>{t.print}</button>
           </div>
         </header>
-        {extension && (
-          <nav className="lesson-extend no-print" aria-label="Phần của buổi học">
-            <span className="on" aria-current="page">Workbook Buổi 04</span>
-            <Link href={extension.href}>{extension.label}</Link>
-          </nav>
-        )}
         {showPhases && <div className="phase-scroll" aria-label="Pha học tập">
           {phases.map((item) => (
             <button key={item.id} type="button" className={item.id === phase ? "on" : done.includes(item.id) ? "did" : ""} onClick={() => go(item.id)}>
@@ -161,23 +161,37 @@ export function LessonExperience({
           ))}
         </div>}
         <div className="shell-content">
-          <LessonStage
-            lessonNumber={lesson.number}
-            courseSlug={courseSlug}
-            storageKey={lesson.storageKey}
-            css={source.css}
-            html={source.html}
-            script={source.script}
-            initialAnswers={initialAnswers}
-            initialPhase={initialPhase}
-            userId={userId}
-            serverUpdatedAt={serverUpdatedAt}
-            onPhase={(next, phasesDone, percent) => { setPhase(next); setDone(phasesDone); setProgress(percent); }}
-            onSaveState={(state, at) => { setSave(state); if (at) setSavedAt(at); }}
-            sampleLabel={t.sample}
-            scopeClass={scopeClass}
-            showSample={showSample}
-          />
+          {nativeStudio ? (
+            <VrimLesson
+              initialAnswers={initialAnswers}
+              legacyAnswers={legacyAnswers}
+              initialPhase={initialPhase}
+              userId={userId}
+              serverUpdatedAt={serverUpdatedAt}
+              courseSlug={courseSlug}
+              lessonNumber={lesson.number}
+              onPhase={(next, phasesDone, percent) => { setPhase(next); setDone(phasesDone); setProgress(percent); }}
+              onSaveState={(state, at) => { setSave(state); if (at) setSavedAt(at); }}
+            />
+          ) : (
+            <LessonStage
+              lessonNumber={lesson.number}
+              courseSlug={courseSlug}
+              storageKey={lesson.storageKey}
+              css={source.css}
+              html={source.html}
+              script={source.script}
+              initialAnswers={initialAnswers}
+              initialPhase={initialPhase}
+              userId={userId}
+              serverUpdatedAt={serverUpdatedAt}
+              onPhase={(next, phasesDone, percent) => { setPhase(next); setDone(phasesDone); setProgress(percent); }}
+              onSaveState={(state, at) => { setSave(state); if (at) setSavedAt(at); }}
+              sampleLabel={t.sample}
+              scopeClass={scopeClass}
+              showSample={showSample}
+            />
+          )}
         </div>
       </div>
     </div>

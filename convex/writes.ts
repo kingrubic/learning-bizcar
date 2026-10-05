@@ -1,9 +1,9 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { instructorAssignmentError, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
-import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode, normalizeSessionDrafts, slugFromCode } from "./codes";
+import { BMDO_SLUG, answerKeyFor, isVersionedAnswerJson, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode, normalizeSessionDrafts, slugFromCode } from "./codes";
 import { ensureClassChannel } from "./discussion";
-import { gate, nextId, now, passwordFlag, userByLegacy } from "./helpers";
+import { answerKeys, gate, lessonByLegacy, nextId, now, passwordFlag, userByLegacy, versionRow } from "./helpers";
 
 const secret = { secret: v.string() };
 
@@ -311,6 +311,8 @@ async function purgeUserOwned(ctx: MutationCtx, userId: number, usernameLower: s
   for (const row of enrollments) await ctx.db.delete(row._id);
   const answers = await ctx.db.query("lessonAnswers").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
   for (const row of answers) await ctx.db.delete(row._id);
+  const versions = await ctx.db.query("lessonAnswerVersions").withIndex("by_user", (q) => q.eq("userId", userId)).collect();
+  for (const row of versions) await ctx.db.delete(row._id);
   const submissions = (await ctx.db.query("lessonSubmissions").collect()).filter((row) => row.userId === userId);
   for (const row of submissions) {
     const notes = await ctx.db.query("coachFeedback").withIndex("by_submission", (q) => q.eq("submissionId", row.legacyId)).collect();
@@ -905,8 +907,15 @@ export const addFeedback = mutation({
     const id = await nextId(ctx, "coachFeedback");
     await ctx.db.insert("coachFeedback", { legacyId: id, submissionId: args.submissionId, authorId: args.actorId, body: args.body.trim(), createdAt: now() });
     await ctx.db.patch(submission._id, { reviewStatus: "reviewed" });
-    const answer = await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", submission.userId).eq("lessonId", submission.lessonId)).unique();
-    if (answer) await ctx.db.patch(answer._id, { status: "reviewed", updatedAt: now() });
+    const answerKey = (await answerKeys(ctx))(submission.lessonId);
+    if (answerKey) {
+      // Only a snapshot of the new version marks the new record. An old-version snapshot never touches the old row.
+      const answer = submission.answerKey === answerKey ? await versionRow(ctx, submission.userId, submission.lessonId, answerKey) : null;
+      if (answer) await ctx.db.patch(answer._id, { status: "reviewed", updatedAt: now() });
+    } else {
+      const answer = await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", submission.userId).eq("lessonId", submission.lessonId)).unique();
+      if (answer) await ctx.db.patch(answer._id, { status: "reviewed", updatedAt: now() });
+    }
     await log(ctx, args.actorId, "review", "submission", String(args.submissionId));
     return { userId: submission.userId };
   },
@@ -929,6 +938,8 @@ export const saveAnswers = mutation({
   },
   handler: async (ctx, args) => {
     gate(args.secret);
+    const answerKey = answerKeyFor((await lessonByLegacy(ctx, args.lessonId))?.storageKey);
+    if (answerKey) return saveVersion(ctx, args, answerKey);
     const existing = await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", args.userId).eq("lessonId", args.lessonId)).unique();
     const stamp = now();
     if (existing) {
@@ -979,11 +990,61 @@ export const saveAnswers = mutation({
   },
 });
 
+/** New-version save. Writes only lessonAnswerVersions; the lesson's old lessonAnswers row is left as it is. */
+async function saveVersion(ctx: MutationCtx, args: {
+  userId: number; lessonId: number; courseId: number; schemaVersion: string; answersJson: string; phase: string;
+  phasesDoneJson: string; progressPercent: number; status: string; completedAt: string | null; logComplete: boolean;
+}, answerKey: string) {
+  if (!isVersionedAnswerJson(answerKey, args.answersJson)) throw new Error("INVALID_ANSWERS");
+  const existing = await versionRow(ctx, args.userId, args.lessonId, answerKey);
+  const stamp = now();
+  const fields = {
+    schemaVersion: args.schemaVersion,
+    answersJson: args.answersJson,
+    currentPhase: args.phase,
+    phasesDoneJson: args.phasesDoneJson,
+    progressPercent: args.progressPercent,
+    status: args.status,
+    completedAt: args.completedAt,
+    updatedAt: stamp,
+  };
+  if (existing) {
+    await ctx.db.patch(existing._id, fields);
+  } else {
+    const id = await nextId(ctx, "lessonAnswerVersions");
+    await ctx.db.insert("lessonAnswerVersions", { legacyId: id, userId: args.userId, courseId: args.courseId, lessonId: args.lessonId, answerKey, ...fields });
+  }
+  if (args.logComplete) await log(ctx, args.userId, "lesson_complete", "lesson", String(args.lessonId), `progress ${args.progressPercent}`);
+  const saved = await versionRow(ctx, args.userId, args.lessonId, answerKey);
+  if (!saved) throw new Error("NOT_FOUND");
+  return {
+    id: saved.legacyId,
+    user_id: saved.userId,
+    course_id: saved.courseId,
+    lesson_id: saved.lessonId,
+    schema_version: saved.schemaVersion,
+    answers_json: saved.answersJson,
+    current_phase: saved.currentPhase,
+    phases_done_json: saved.phasesDoneJson,
+    progress_percent: saved.progressPercent,
+    status: saved.status,
+    completed_at: saved.completedAt,
+    updated_at: saved.updatedAt,
+  };
+}
+
+/** The row a lesson-status write may patch: the new-version row when the lesson has one, else the usual row. */
+async function writableAnswer(ctx: MutationCtx, userId: number, lessonId: number) {
+  const answerKey = (await answerKeys(ctx))(lessonId);
+  if (answerKey) return { answerKey, row: await versionRow(ctx, userId, lessonId, answerKey) };
+  return { answerKey: null, row: await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", userId).eq("lessonId", lessonId)).unique() };
+}
+
 export const completeLesson = mutation({
   args: { ...secret, userId: v.number(), lessonId: v.number() },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const existing = await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", args.userId).eq("lessonId", args.lessonId)).unique();
+    const { row: existing } = await writableAnswer(ctx, args.userId, args.lessonId);
     if (!existing) throw new Error("EMPTY");
     if (existing.status === "submitted" || existing.status === "reviewed") {
       return { status: existing.status, updated_at: existing.updatedAt };
@@ -1009,7 +1070,7 @@ export const submitLesson = mutation({
   },
   handler: async (ctx, args) => {
     gate(args.secret);
-    const existing = await ctx.db.query("lessonAnswers").withIndex("by_user_lesson", (q) => q.eq("userId", args.userId).eq("lessonId", args.lessonId)).unique();
+    const { answerKey, row: existing } = await writableAnswer(ctx, args.userId, args.lessonId);
     if (!existing) throw new Error("EMPTY");
     const id = await nextId(ctx, "lessonSubmissions");
     const stamp = now();
@@ -1025,6 +1086,7 @@ export const submitLesson = mutation({
       progressPercent: args.progressPercent,
       submittedAt: stamp,
       reviewStatus: "submitted",
+      ...(answerKey ? { answerKey } : {}),
     });
     await ctx.db.patch(existing._id, { status: "submitted", completedAt: existing.completedAt ?? stamp, updatedAt: stamp });
     await log(ctx, args.userId, "lesson_submit", "submission", String(id));

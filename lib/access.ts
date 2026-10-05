@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { isLessonInOpenSession, subsetProgress } from "@/convex/codes";
+import { answerKeyFor, gateRows, isLessonInOpenSession, subsetProgress } from "@/convex/codes";
+import { validateStudio } from "./vrim-lesson";
 import { api, q } from "./convex";
 import { type LessonStatus, type UnlockMode } from "./db";
 import type { SessionUser } from "./auth";
@@ -66,6 +67,12 @@ export async function answerFor(userId: number, lessonId: number, courseSlug?: s
   return (await answersFor(userId, courseSlug)).find((row) => row.lesson_id === lessonId);
 }
 
+/** Old-version row of a lesson that moved to a new answer key (see ANSWER_VERSIONS). Read-only. */
+export async function legacyAnswerFor(userId: number, lessonId: number, courseSlug?: string) {
+  const rows = ((await loadState(userId, courseSlug))?.legacy_answers ?? []) as AnswerRow[];
+  return rows.find((row) => row.lesson_id === lessonId);
+}
+
 const DONE = new Set(["completed", "submitted", "reviewed"]);
 
 export async function isLessonUnlocked(userId: number, lessonNumber: number, courseSlug?: string) {
@@ -84,7 +91,10 @@ export async function isLessonUnlocked(userId: number, lessonNumber: number, cou
       lessonIds: session.lesson_ids,
     })),
     lessonId: lesson.id,
-    answers: state.answers.map((row) => ({ lessonId: row.lesson_id, status: row.status })),
+    answers: gateRows(
+      state.answers.map((row) => ({ lessonId: row.lesson_id, status: row.status })),
+      (state.legacy_answers ?? []).map((row) => ({ lessonId: row.lesson_id, status: row.status })),
+    ),
     nowMs: Date.now(),
   });
 }
@@ -111,6 +121,10 @@ export async function saveAnswers(input: {
   if (!(await isLessonUnlocked(input.userId, input.lessonNumber, input.courseSlug))) throw new Error("LOCKED");
   const lesson = state.lessons.find((item) => item.number === input.lessonNumber);
   if (!lesson) throw new Error("NOT_FOUND");
+  if (answerKeyFor(lesson.storage_key)) {
+    // A new-version document must pass the strict check; a broken payload is refused, never saved over good work.
+    try { validateStudio(input.answers); } catch { throw new Error("INVALID_ANSWERS"); }
+  }
   const existing = state.answers.find((item) => item.lesson_id === lesson.id) as AnswerRow | undefined;
   const progress = Math.max(0, Math.min(100, Math.round(input.progressPercent)));
   let status: LessonStatus = existing?.status && DONE.has(existing.status) ? existing.status : statusFromProgress(progress);
