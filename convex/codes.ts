@@ -9,6 +9,23 @@ const DONE = new Set(["completed", "submitted", "reviewed"]);
  */
 export const ANSWER_VERSIONS: Readonly<Record<string, string>> = {
   "bmdo-k03-buoi04-vrim-v1": "bmdo-k03-buoi04-vrim-v2",
+  // Batch 1 native studios (lib/studios/registry.ts). Value = studio envelope key.
+  "bmdo-k03-buoi08-scp-v1": "bmdo-k03-buoi08-mrim-v2",
+  "bmdo_k03_buoi09_mair_cib": "bmdo-k03-buoi09-mair-v2",
+  "bmdo_k03_buoi10_mcasing_pfe": "bmdo-k03-buoi10-mcasing-v2",
+  "bmdo_k03_buoi11_mtread_grip": "bmdo-k03-buoi11-mtread-v2",
+  "bmdo_k03_buoi12_prim_cod": "bmdo-k03-buoi12-prim-v2",
+  "bmdo_k03_buoi14_pcasing_wsc": "bmdo-k03-buoi14-pcasing-v2",
+};
+
+/** Answer key -> studio id for the native studio lessons (envelope `studio` field). */
+export const STUDIO_ANSWER_KEYS: Readonly<Record<string, string>> = {
+  "bmdo-k03-buoi08-mrim-v2": "mrim",
+  "bmdo-k03-buoi09-mair-v2": "mair",
+  "bmdo-k03-buoi10-mcasing-v2": "mcasing",
+  "bmdo-k03-buoi11-mtread-v2": "mtread",
+  "bmdo-k03-buoi12-prim-v2": "prim",
+  "bmdo-k03-buoi14-pcasing-v2": "pcasing",
 };
 
 export function answerKeyFor(storageKey: string | null | undefined): string | null {
@@ -42,6 +59,15 @@ export function gateRows(active: { lessonId: number; status: string }[], legacy:
 
 /** Server-side shape check for a V-RIM 2.0 document; a broken payload is refused instead of saved. */
 export function isVersionedAnswerJson(answerKey: string, json: string) {
+  if (Object.hasOwn(STUDIO_ANSWER_KEYS, answerKey)) {
+    try {
+      const raw = JSON.parse(json) as { format?: unknown; studio?: unknown; version?: unknown; doc?: unknown; visited?: unknown };
+      return Boolean(raw && raw.format === "mybizcar-studio" && raw.version === 2 && raw.studio === STUDIO_ANSWER_KEYS[answerKey]
+        && (raw.doc === null || (typeof raw.doc === "object" && !Array.isArray(raw.doc))) && Array.isArray(raw.visited));
+    } catch {
+      return false;
+    }
+  }
   if (answerKey !== "bmdo-k03-buoi04-vrim-v2") return true;
   try {
     const raw = JSON.parse(json) as { version?: unknown; context?: unknown; nodes?: unknown };
