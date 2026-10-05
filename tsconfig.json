@@ -43,6 +43,7 @@
     "lib/password-gate.check.ts",
     "lib/vabix-applier.check.ts",
     "lib/babosora-applier.check.ts",
-    "lib/vrim-lesson.check.ts"
+    "lib/vrim-lesson.check.ts",
+    "lib/bmdo-studios.check.ts"
   ]
 }

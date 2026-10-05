@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { answerKeyFor, gateRows, isLessonInOpenSession, subsetProgress } from "@/convex/codes";
 import { validateStudio } from "./vrim-lesson";
+import { studioForAnswerKey } from "./studios/registry";
+import { validateEnvelope } from "./studios/validate";
 import { api, q } from "./convex";
 import { type LessonStatus, type UnlockMode } from "./db";
 import type { SessionUser } from "./auth";
@@ -121,9 +123,16 @@ export async function saveAnswers(input: {
   if (!(await isLessonUnlocked(input.userId, input.lessonNumber, input.courseSlug))) throw new Error("LOCKED");
   const lesson = state.lessons.find((item) => item.number === input.lessonNumber);
   if (!lesson) throw new Error("NOT_FOUND");
-  if (answerKeyFor(lesson.storage_key)) {
+  const answerKey = answerKeyFor(lesson.storage_key);
+  if (answerKey) {
     // A new-version document must pass the strict check; a broken payload is refused, never saved over good work.
-    try { validateStudio(input.answers); } catch { throw new Error("INVALID_ANSWERS"); }
+    const studio = studioForAnswerKey(answerKey);
+    try {
+      if (studio) validateEnvelope(studio, input.answers);
+      else validateStudio(input.answers);
+    } catch {
+      throw new Error("INVALID_ANSWERS");
+    }
   }
   const existing = state.answers.find((item) => item.lesson_id === lesson.id) as AnswerRow | undefined;
   const progress = Math.max(0, Math.min(100, Math.round(input.progressPercent)));

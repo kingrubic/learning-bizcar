@@ -10,8 +10,11 @@ import { BrandMark } from "@/components/brand/BrandMark";
 import { LocaleSwitch } from "@/components/brand/LocaleSwitch";
 import { NotificationBell } from "@/components/brand/NotificationBell";
 import { messages, type Locale } from "@/lib/i18n";
+import { studioForLesson } from "@/lib/studios/registry";
+import type { StudioSource } from "@/lib/studios/source";
 
 const VrimLesson = dynamic(() => import("./VrimLesson").then((mod) => mod.VrimLesson));
+const StudioLesson = dynamic(() => import("./StudioLesson").then((mod) => mod.StudioLesson), { ssr: false });
 
 type LessonLink = { number: number; code: string; title: string; framework: string; status: string; unlocked: boolean };
 
@@ -35,6 +38,7 @@ export function LessonExperience({
   showSample = true,
   nativeStudio = false,
   legacyAnswers = null,
+  studioSource = null,
 }: {
   lesson: LessonMeta;
   lessons: LessonLink[];
@@ -56,6 +60,8 @@ export function LessonExperience({
   nativeStudio?: boolean;
   /** Read-only old record, shown by the native studio only. */
   legacyAnswers?: unknown;
+  /** Original studio file for a BMDO-K03 native studio lesson (lib/studios/registry.ts). */
+  studioSource?: StudioSource | null;
 }) {
   const t = messages(locale);
   const router = useRouter();
@@ -161,7 +167,22 @@ export function LessonExperience({
           ))}
         </div>}
         <div className="shell-content">
-          {nativeStudio ? (
+          {studioSource && studioForLesson(lesson.number) ? (
+            <StudioLesson
+              config={studioForLesson(lesson.number)!}
+              source={studioSource}
+              initialAnswers={initialAnswers}
+              legacyAnswers={legacyAnswers}
+              initialPhase={initialPhase}
+              userId={userId}
+              serverUpdatedAt={serverUpdatedAt}
+              courseSlug={courseSlug}
+              lessonNumber={lesson.number}
+              hasReport={lesson.hasReport}
+              onPhase={(next, phasesDone, percent) => { setPhase(next); setDone(phasesDone); setProgress(percent); }}
+              onSaveState={(state, at) => { setSave(state); if (at) setSavedAt(at); }}
+            />
+          ) : nativeStudio ? (
             <VrimLesson
               initialAnswers={initialAnswers}
               legacyAnswers={legacyAnswers}

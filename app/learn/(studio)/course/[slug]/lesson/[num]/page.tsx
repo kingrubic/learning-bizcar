@@ -8,6 +8,8 @@ import { babosoraLesson, isBabosoraCourse } from "@/lib/babosora-applier";
 import { isVabixCourse, vabixLesson } from "@/lib/vabix-applier";
 import { LessonExperience } from "@/components/learning/LessonExperience";
 import { canSee } from "@/lib/permissions";
+import { studioForLesson } from "@/lib/studios/registry";
+import { loadStudioSource } from "@/lib/studios/source";
 import { getLocale } from "@/lib/locale";
 import { lessonPublished } from "@/lib/cms";
 
@@ -36,12 +38,16 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
     : meta;
   const saved = await answerFor(user.id, row.id, slug);
   const nativeStudio = state.course.slug === BMDO_SLUG && number === 4;
-  const source = nativeStudio
+  // BMDO-K03 lessons rebuilt from an original studio file; only when the lesson row still carries its old key.
+  const studio = state.course.slug === BMDO_SLUG ? studioForLesson(number) : null;
+  const studioLesson = studio && studio.oldKey === row.storage_key ? studio : null;
+  const studioSource = studioLesson ? loadStudioSource(studioLesson) : null;
+  const source = nativeStudio || studioLesson
     ? { css: "", html: "", script: "", scopeClass: "bizcar-lesson", showSample: false, showPhases: true }
     : loadLessonSource(number, { slug, storageKey: row.storage_key });
   // Buổi 04 native studio: `saved` is the new-version record (its own answer key); the old record is
   // loaded separately, read-only, for «Bài làm phiên bản cũ». Nothing here is written back to it.
-  const legacy = nativeStudio ? await legacyAnswerFor(user.id, row.id, slug) : undefined;
+  const legacy = nativeStudio || studioLesson ? await legacyAnswerFor(user.id, row.id, slug) : undefined;
   const legacyAnswers = legacy ? JSON.parse(legacy.answers_json) as unknown : null;
   const answers = saved ? JSON.parse(saved.answers_json) as Record<string, unknown> : {};
   const done = saved ? JSON.parse(saved.phases_done_json) as string[] : [];
@@ -74,6 +80,7 @@ export default async function LessonPage({ params }: { params: Promise<{ slug: s
       courseCode={state.course.code}
       nativeStudio={nativeStudio}
       legacyAnswers={legacyAnswers}
+      studioSource={studioSource}
     />
   );
 }
