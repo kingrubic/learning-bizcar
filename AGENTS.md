@@ -51,3 +51,22 @@ Always-on via `.cursor/rules/ponytail.mdc`. Cloud does not get Mac Mini `hooks.j
 ## Defuddle
 
 For reading web docs, prefer `/defuddle` skill or `npx -y defuddle parse <url> --md` over dumping raw HTML.
+
+## Quy trình thay đổi code → deploy
+
+Áp dụng cho mọi thay đổi code (agent làm theo, không cần hỏi lại từng bước; chỉ báo user khi cần duyệt quyền).
+
+1. **Nhánh:** không commit thẳng vào `main`. Tạo nhánh `feat/…`, `fix/…`, `chore/…` hoặc `docs/…`.
+2. **Kiểm tra trước khi commit:** `npx tsc --noEmit -p .`; chạy các `*.check.ts` liên quan (`node lib/<tên>.check.ts`). Đổi trong `convex/` thì chạy lại codegen và commit cả `convex/_generated/`.
+3. **Commit + PR:** commit message và PR viết tiếng Việt, ngắn gọn. `git push -u origin <nhánh>` rồi `gh pr create --base main`.
+4. **CI:** bật Auto-fix cho PR (CI hỏng / xung đột / review → sửa, kiểm tra, push lại).
+5. **Merge:** khi CI pass, `gh pr merge <số> --squash --delete-branch`. User đã cho phép merge.
+6. **Deploy** (production chạy trên máy này, Mac Mini):
+   ```bash
+   git switch main && git pull --ff-only
+   npx convex deploy            # chỉ khi PR đổi thư mục convex/ (Convex cloud, dùng CONVEX_DEPLOY_KEY trong .env.local)
+   npm run build
+   launchctl kickstart -k gui/$(id -u)/ai.vabix.bizcar.learning.web
+   ```
+   Web là launchd `ai.vabix.bizcar.learning.web` → `scripts/start.sh` → `next start` tại `127.0.0.1:3014`. Log: `~/ops/logs/ai.vabix.bizcar.learning.web{,.err}.log`.
+7. **Xác minh:** `curl -sI http://127.0.0.1:3014/learn/login` trả 200, log lỗi không có dòng mới. Hỏng thì quay lại commit trước trên `main`, build và kickstart lại.
