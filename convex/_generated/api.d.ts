@@ -10,6 +10,8 @@
 
 import type * as babosoraApplier from "../babosoraApplier.js";
 import type * as catalog from "../catalog.js";
+import type * as catalogScope from "../catalogScope.js";
+import type * as codes from "../codes.js";
 import type * as discussion from "../discussion.js";
 import type * as discussionAccess from "../discussionAccess.js";
 import type * as discussionSummary from "../discussionSummary.js";
@@ -29,6 +31,8 @@ import type {
 declare const fullApi: ApiFromModules<{
   babosoraApplier: typeof babosoraApplier;
   catalog: typeof catalog;
+  catalogScope: typeof catalogScope;
+  codes: typeof codes;
   discussion: typeof discussion;
   discussionAccess: typeof discussionAccess;
   discussionSummary: typeof discussionSummary;
