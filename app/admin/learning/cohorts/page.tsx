@@ -25,12 +25,11 @@ export default async function CohortsPage({ searchParams }: { searchParams: Prom
       {cohorts.length === 0 && <p className="muted" style={{ marginTop: 18 }}>Chưa có lớp.</p>}
       {cohorts.map((cohort) => {
         const course = courses.find((item) => item.id === cohort.course_id);
-        const instructor = cohort.instructor;
         const members = roster.filter((row) => row.cohort_id === cohort.id).length;
         const lessonCount = new Set(cohort.sessions.flatMap((session) => session.lesson_ids)).size;
         return (
           <section className="card" key={cohort.id} style={{ marginTop: 12 }}>
-            <div className="eyebrow">{instructor ? instructor.display_name : "Chưa gán giảng viên"}</div>
+            <div className="eyebrow">{cohort.instructors.length ? cohort.instructors.map((person) => person.display_name).join(" · ") : "Chưa gán giảng viên"}</div>
             <h2 className="serif">{classPickerLabel({ name: cohort.name, code: cohort.code, courseCode: course?.code })}</h2>
             <p className="muted">{cohort.org} · Review {cohort.review_enabled ? "bật" : "tắt"} · {cohort.sessions.length} buổi · {lessonCount} bài trong buổi · {members} học viên</p>
             <p className="row-actions">

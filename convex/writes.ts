@@ -1,6 +1,7 @@
+import type { Doc } from "./_generated/dataModel";
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { instructorAssignmentError, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
+import { cohortInstructorIds, instructorAssignmentError, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { BMDO_SLUG, answerKeyFor, isVersionedAnswerJson, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode, normalizeSessionDrafts, slugFromCode } from "./codes";
 import { ensureClassChannel } from "./discussion";
 import { answerKeys, gate, lessonByLegacy, nextId, now, passwordFlag, userByLegacy, versionRow } from "./helpers";
@@ -379,13 +380,12 @@ export const saveCohort = mutation({
     courseId: v.number(),
     mode: unlockMode,
     code: v.optional(v.string()),
-    instructorId: v.number(),
+    instructors: v.array(v.object({ id: v.number(), code: v.optional(v.string()) })),
     sessions: v.array(v.object({
       title: v.string(),
       sessionDate: v.union(v.string(), v.null()),
       lessonIds: v.array(v.number()),
     })),
-    instructorCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     gate(args.secret);
@@ -398,10 +398,21 @@ export const saveCohort = mutation({
       ? await ctx.db.query("cohorts").withIndex("by_legacy", (q) => q.eq("legacyId", editingId)).unique()
       : null;
     if (editingId && !existing) return { error: "Lớp không tồn tại." as const };
-    const instructorMessage = await instructorError(ctx, args.instructorId, existing?.instructorId ?? null);
-    if (instructorMessage) return { error: instructorMessage };
-    const instructor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", args.instructorId)).unique();
-    if (!instructor) return { error: "Chọn một giảng viên đang hoạt động." as const };
+    const picks = args.instructors.filter((row, index) => args.instructors.findIndex((item) => item.id === row.id) === index);
+    if (picks.length === 0) return { error: "Chọn ít nhất một giảng viên." as const };
+    const current = existing ? cohortInstructorIds(existing) : [];
+    const team: { instructor: Doc<"users">; instructorCode: string }[] = [];
+    for (const pick of picks) {
+      const instructorMessage = await instructorError(ctx, pick.id, current.includes(pick.id) ? pick.id : null);
+      if (instructorMessage) return { error: instructorMessage };
+      const instructor = await ctx.db.query("users").withIndex("by_legacy", (q) => q.eq("legacyId", pick.id)).unique();
+      if (!instructor) return { error: "Chọn một giảng viên đang hoạt động." as const };
+      const instructorCode = cleanCode(pick.code || "");
+      if (instructorCode.length > 40) return { error: "Mã giảng viên không hợp lệ." as const };
+      if (instructorCode && (team.some((row) => row.instructorCode === instructorCode) || await takenUserCode(ctx, instructorCode, instructor.legacyId))) return { error: `Mã giảng viên ${instructorCode} đã được dùng.` };
+      team.push({ instructor, instructorCode });
+    }
+    const instructorIds = team.map((row) => row.instructor.legacyId);
     const catalog = (await ctx.db.query("lessons").withIndex("by_course_number", (q) => q.eq("courseId", course.legacyId)).collect())
       .sort((a, b) => (a.sortOrder ?? a.number) - (b.sortOrder ?? b.number) || a.number - b.number);
     const normalized = normalizeSessionDrafts(catalog.map((row) => ({ id: row.legacyId })), args.sessions);
@@ -410,19 +421,18 @@ export const saveCohort = mutation({
     const code = requested || await nextClassCode(ctx, course.code, course.legacyId);
     if (!code) return { error: "Không tạo được mã lớp." as const };
     if (await takenClassCode(ctx, code, args.cohortId)) return { error: "Mã lớp đã được dùng." as const };
-    const instructorCode = cleanCode(args.instructorCode || "");
-    if (instructorCode) {
-      if (instructorCode.length > 40) return { error: "Mã giảng viên không hợp lệ." as const };
-      if (await takenUserCode(ctx, instructorCode, instructor.legacyId)) return { error: "Mã giảng viên đã được dùng." as const };
-      if (instructor.managementCode !== instructorCode) await ctx.db.patch(instructor._id, { managementCode: instructorCode, updatedAt: now() });
-    } else await ensureUserCode(ctx, instructor.legacyId, instructorManagementCode(instructor.legacyId));
+    for (const { instructor, instructorCode } of team) {
+      if (!instructorCode) await ensureUserCode(ctx, instructor.legacyId, instructorManagementCode(instructor.legacyId));
+      else if (instructor.managementCode !== instructorCode) await ctx.db.patch(instructor._id, { managementCode: instructorCode, updatedAt: now() });
+    }
     if (existing) {
       await ctx.db.patch(existing._id, {
         name,
         courseId: course.legacyId,
         unlockMode: args.mode,
         code,
-        instructorId: instructor.legacyId,
+        instructorId: instructorIds[0],
+        instructorIds,
         sessionsReady: 1,
       });
       await replaceClassSessions(ctx, existing.legacyId, normalized.sessions);
@@ -441,7 +451,8 @@ export const saveCohort = mutation({
       reviewEnabled: 1,
       createdAt: now(),
       code,
-      instructorId: instructor.legacyId,
+      instructorId: instructorIds[0],
+      instructorIds,
       lessonsScoped: 1,
       sessionsReady: 1,
     });
