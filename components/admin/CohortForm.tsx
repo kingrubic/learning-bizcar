@@ -95,11 +95,11 @@ export function CohortForm({
         <legend>Giảng viên</legend>
         <small className="muted">Chọn một hoặc nhiều người từ nhóm GV dẫn giảng thực hành hoặc admin/mod. Mã giảng viên để trống thì giữ mã hiện có hoặc tạo GV-….</small>
         {instructorIds.length === 0 && <p className="muted">Chưa chọn giảng viên. Lớp cần ít nhất một giảng viên.</p>}
-        <div style={{ maxHeight: 260, overflow: "auto", border: "1px solid var(--line)", borderRadius: 8, padding: "4px 10px" }}>
+        <div className="pick-list">
           {instructors.map((person) => {
             const checked = instructorIds.includes(person.id);
             return (
-              <div key={person.id} className="user-line" style={{ margin: "6px 0", gap: 8 }}>
+              <div key={person.id} className={checked ? "pick-row on" : "pick-row"}>
                 <label>
                   <input
                     type="checkbox"
@@ -108,9 +108,10 @@ export function CohortForm({
                     checked={checked}
                     onChange={(event) => setInstructorIds((current) => event.target.checked ? [...current, person.id] : current.filter((id) => id !== person.id))}
                   />
-                  {" "}{person.display_name} · @{person.username} · {person.role}
+                  <span className="pick-name"><strong>{person.display_name}</strong><small>@{person.username}</small></span>
                 </label>
-                {checked && <input aria-label={`Mã giảng viên ${person.display_name}`} name={`instructorCode-${person.id}`} placeholder={person.management_code || "Mã GV-…"} style={{ maxWidth: 160 }} />}
+                <span className="pick-role">{person.role}</span>
+                {checked && <input className="pick-code" aria-label={`Mã giảng viên ${person.display_name}`} name={`instructorCode-${person.id}`} placeholder={person.management_code || "Mã GV-…"} />}
               </div>
             );
           })}
