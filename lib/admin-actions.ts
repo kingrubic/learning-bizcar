@@ -141,12 +141,12 @@ export async function saveCohort(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const courseId = Number(formData.get("courseId"));
   const mode = String(formData.get("mode") || "sequential");
-  const instructorId = Number(formData.get("instructorId"));
+  const instructors = formData.getAll("instructorIds").map(Number).map((id) => ({ id, code: String(formData.get(`instructorCode-${id}`) || "") }));
   const cohortRaw = Number(formData.get("cohortId") || 0);
   const cohortId = Number.isInteger(cohortRaw) && cohortRaw > 0 ? cohortRaw : undefined;
   const sessions = sessionsFrom(formData);
   if (!name || !courseId) cohortReturn(cohortId, "Thiếu tên lớp hoặc khoá.", "new");
-  if (!Number.isInteger(instructorId) || instructorId <= 0) cohortReturn(cohortId, "Chọn một giảng viên.", "new");
+  if (instructors.length === 0 || instructors.some(({ id }) => !Number.isInteger(id) || id <= 0)) cohortReturn(cohortId, "Chọn ít nhất một giảng viên.", "new");
   if (mode !== "all_open" && mode !== "sequential" && mode !== "scheduled") cohortReturn(cohortId, "Cách mở buổi không hợp lệ.", "new");
   if (!sessions) cohortReturn(cohortId, "Danh sách buổi không hợp lệ.", "new");
   const created = await q((convex, secret) => convex.mutation(api.writes.saveCohort, {
@@ -157,9 +157,8 @@ export async function saveCohort(formData: FormData) {
     courseId,
     mode,
     code: String(formData.get("code") || ""),
-    instructorId,
+    instructors,
     sessions,
-    instructorCode: String(formData.get("instructorCode") || ""),
   }));
   if ("error" in created && created.error) cohortReturn(cohortId, created.error, "new");
   const id = "id" in created ? created.id : cohortId;

@@ -112,6 +112,11 @@ export function isAssignableInstructor(user: InstructorCandidate | null, groupId
   return groupId != null && user.permissionGroupId === groupId;
 }
 
+/** All instructors of a class; older rows only have the single instructorId. */
+export function cohortInstructorIds(row: { instructorId?: number | null; instructorIds?: number[] }) {
+  return row.instructorIds ?? (row.instructorId != null ? [row.instructorId] : []);
+}
+
 /** Null instructor clears the seat. A new id must be an active group member or an active admin/mod. The current id stays valid after the person loses eligibility. */
 export function instructorAssignmentError(input: {
   instructorId: number | null;

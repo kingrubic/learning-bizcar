@@ -13,7 +13,7 @@ type Defaults = {
   course_id: number;
   code: string;
   unlock_mode: string;
-  instructor_id: number | null;
+  instructor_ids: number[];
   sessions: { title: string; date: string; lesson_ids: number[] }[];
 };
 
@@ -41,10 +41,9 @@ export function CohortForm({
   const formKey = defaults?.id ?? "new";
   const [courseId, setCourseId] = useState(defaults?.course_id ?? courses[0]?.id ?? 0);
   const [sessions, setSessions] = useState<SessionDraft[]>(() => initialSessions(defaults));
-  const [instructorId, setInstructorId] = useState<number | "">(defaults ? (defaults.instructor_id ?? "") : (instructors[0]?.id ?? ""));
+  const [instructorIds, setInstructorIds] = useState<number[]>(defaults ? defaults.instructor_ids : instructors.slice(0, 1).map((person) => person.id));
   const nextKey = useRef((defaults?.sessions.length ?? 1) + 1);
   const catalog = lessons.filter((lesson) => lesson.course_id === courseId && (lesson.archived !== 1 || sessions.some((session) => session.lessonIds.includes(lesson.id))));
-  const instructor = instructors.find((person) => person.id === instructorId);
   const payload = JSON.stringify(sessions.map(({ title, date, lessonIds }) => ({ title, date, lessonIds })));
 
   function onCourse(next: number) {
@@ -92,18 +91,31 @@ export function CohortForm({
         <label htmlFor={`code-${formKey}`}>Mã lớp</label>
         <input id={`code-${formKey}`} name="code" defaultValue={defaults?.code ?? ""} placeholder="Để trống để tạo LH-…" />
       </div>
-      <div className="field">
-        <label htmlFor={`instructor-${formKey}`}>Giảng viên</label>
-        <select id={`instructor-${formKey}`} name="instructorId" required value={instructorId || ""} onChange={(event) => setInstructorId(Number(event.target.value))}>
-          <option value="" disabled>Chọn một tài khoản</option>
-          {instructors.map((person) => <option key={person.id} value={person.id}>{person.display_name} · @{person.username} · {person.role}</option>)}
-        </select>
-        <small className="muted">Chọn từ nhóm GV dẫn giảng thực hành hoặc admin/mod.</small>
-      </div>
-      <div className="field">
-        <label htmlFor={`instructor-code-${formKey}`}>Mã giảng viên</label>
-        <input id={`instructor-code-${formKey}`} name="instructorCode" placeholder={instructor?.management_code || "Để trống để tạo GV-…"} />
-      </div>
+      <fieldset className="field">
+        <legend>Giảng viên</legend>
+        <small className="muted">Chọn một hoặc nhiều người từ nhóm GV dẫn giảng thực hành hoặc admin/mod. Mã giảng viên để trống thì giữ mã hiện có hoặc tạo GV-….</small>
+        {instructorIds.length === 0 && <p className="muted">Chưa chọn giảng viên. Lớp cần ít nhất một giảng viên.</p>}
+        <div style={{ maxHeight: 260, overflow: "auto", border: "1px solid var(--line)", borderRadius: 8, padding: "4px 10px" }}>
+          {instructors.map((person) => {
+            const checked = instructorIds.includes(person.id);
+            return (
+              <div key={person.id} className="user-line" style={{ margin: "6px 0", gap: 8 }}>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="instructorIds"
+                    value={person.id}
+                    checked={checked}
+                    onChange={(event) => setInstructorIds((current) => event.target.checked ? [...current, person.id] : current.filter((id) => id !== person.id))}
+                  />
+                  {" "}{person.display_name} · @{person.username} · {person.role}
+                </label>
+                {checked && <input aria-label={`Mã giảng viên ${person.display_name}`} name={`instructorCode-${person.id}`} placeholder={person.management_code || "Mã GV-…"} style={{ maxWidth: 160 }} />}
+              </div>
+            );
+          })}
+        </div>
+      </fieldset>
       <div className="field">
         <label htmlFor={`mode-${formKey}`}>Cách mở buổi</label>
         <select id={`mode-${formKey}`} name="mode" defaultValue={defaults?.unlock_mode ?? "sequential"}>

@@ -1,6 +1,6 @@
 import { mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
-import { CMS_BLOCKS, COURSE, LESSONS, PERMISSION_PRESETS, PRACTICAL_INSTRUCTOR_DESCRIPTION, PRACTICAL_INSTRUCTOR_GROUP, PRACTICAL_INSTRUCTOR_MENUS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
+import { CMS_BLOCKS, COURSE, cohortInstructorIds, LESSONS, PERMISSION_PRESETS, PRACTICAL_INSTRUCTOR_DESCRIPTION, PRACTICAL_INSTRUCTOR_GROUP, PRACTICAL_INSTRUCTOR_MENUS, PREVIOUS_MAP_LEDE, SESSION20_MAP_LEDE, SESSION21_MAP_LEDE, SESSION27_MAP_LEDE } from "./catalog";
 import { BABOSORA_COURSE, BABOSORA_LESSONS } from "./babosoraApplier";
 import { VABIX_COURSE, VABIX_LESSONS } from "./vabixApplier";
 import { BMDO_SLUG, classManagementCode, courseManagementCode, instructorManagementCode, learnerManagementCode, nextFreeCode } from "./codes";
@@ -854,7 +854,7 @@ export const backfillPhase1 = mutation({
         userCodes.add(user.managementCode);
         continue;
       }
-      const teaches = cohorts.some((row) => row.instructorId === user.legacyId);
+      const teaches = cohorts.some((row) => cohortInstructorIds(row).includes(user.legacyId));
       const learns = enrollments.some((row) => row.userId === user.legacyId && row.memberRole === "learner");
       const preferred = user.role !== "user" || (teaches && !learns)
         ? instructorManagementCode(user.legacyId)

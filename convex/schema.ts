@@ -67,7 +67,10 @@ export default defineSchema({
     reviewEnabled: v.number(),
     createdAt: v.string(),
     code: v.optional(v.string()),
+    // First of instructorIds (kept for the by_instructor index and older rows).
     instructorId: v.optional(v.union(v.number(), v.null())),
+    // Every instructor of the class. Missing on older rows: read through cohortInstructorIds().
+    instructorIds: v.optional(v.array(v.number())),
     // Legacy: 1 = cohortLessons was the class subset. Reads ignore it once sessionsReady is set.
     lessonsScoped: v.optional(v.number()),
     // 1 = classSessions is the source of truth, including an explicit empty list.

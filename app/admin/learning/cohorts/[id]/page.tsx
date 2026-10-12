@@ -29,7 +29,6 @@ export default async function CohortDetailPage({
   const cohort = data.cohorts.find((item) => item.id === cohortId);
   if (!cohort) notFound();
   const course = data.courses.find((item) => item.id === cohort.course_id);
-  const instructor = cohort.instructor;
   const members = data.enrollments.filter((row) => row.cohort_id === cohort.id);
   const openUsers = data.users.filter((item) => !members.some((member) => member.user_id === item.id));
   const lessonCount = new Set(cohort.sessions.flatMap((session) => session.lesson_ids)).size;
@@ -41,7 +40,7 @@ export default async function CohortDetailPage({
   return (
     <main>
       <p className="row-actions"><Link className="btn" href="/admin/learning/cohorts">Danh sách lớp</Link></p>
-      <div className="eyebrow">{instructor ? instructor.display_name : "Chưa gán giảng viên"}</div>
+      <div className="eyebrow">{cohort.instructors.length ? cohort.instructors.map((person) => person.display_name).join(" · ") : "Chưa gán giảng viên"}</div>
       <h1 className="serif">{label}</h1>
       <p className="muted">Buổi học là lịch của lớp: mỗi buổi có ngày và gồm nhiều bài học của khoá. Sửa lớp không đổi danh mục bài.</p>
       {query.error && <p className="notice"><strong>{query.error}</strong></p>}
@@ -49,14 +48,14 @@ export default async function CohortDetailPage({
       <CohortForm
         courses={data.courses}
         lessons={data.lessons}
-        instructors={withCurrentInstructor(data.instructors, cohort.instructor)}
+        instructors={withCurrentInstructors(data.instructors, cohort.instructors)}
         defaults={{
           id: cohort.id,
           name: cohort.name,
           course_id: cohort.course_id,
           code: cohort.code,
           unlock_mode: cohort.unlock_mode,
-          instructor_id: cohort.instructor_id,
+          instructor_ids: cohort.instructors.map((person) => person.id),
           sessions: cohort.sessions.map((session) => ({
             title: session.title,
             date: session.session_date,
@@ -106,7 +105,6 @@ export default async function CohortDetailPage({
   );
 }
 
-function withCurrentInstructor<T extends { id: number }>(instructors: T[], current: T | null) {
-  if (!current || instructors.some((person) => person.id === current.id)) return instructors;
-  return [current, ...instructors];
+function withCurrentInstructors<T extends { id: number }>(instructors: T[], current: T[]) {
+  return [...current.filter((person) => !instructors.some((item) => item.id === person.id)), ...instructors];
 }

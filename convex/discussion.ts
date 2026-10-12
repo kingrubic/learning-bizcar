@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { cohortInstructorIds } from "./catalog";
 import { channelAccess, DISCUSSION_BODY_MAX, DISCUSSION_FILE_BYTES, DISCUSSION_FILE_MAX, DISCUSSION_HISTORY_MAX, DISCUSSION_NAME_MAX } from "./discussionAccess";
 import { gate, nextId, now, userByLegacy } from "./helpers";
 import { notifyDiscussionPost } from "./notifications";
@@ -38,7 +39,9 @@ async function accessFor(ctx: Ctx, userId: number): Promise<Access | null> {
   if (!user || user.active !== 1) return null;
   const staff = isStaff(user.role);
   const enrolledCohortIds = await learnerCohortIds(ctx, user.legacyId);
-  const instructorCohortIds = (await ctx.db.query("cohorts").withIndex("by_instructor", (q) => q.eq("instructorId", user.legacyId)).collect())
+  // ponytail: a class can have several instructors (array, not indexable). Classes are few; scan them.
+  const instructorCohortIds = (await ctx.db.query("cohorts").collect())
+    .filter((row) => cohortInstructorIds(row).includes(user.legacyId))
     .map((row) => row.legacyId);
   return { userId: user.legacyId, staff, enrolledCohortIds, instructorCohortIds };
 }

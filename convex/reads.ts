@@ -2,7 +2,7 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { classCatalog, cohortPlan, loadCatalog, type CatalogRow } from "./catalogScope";
 import { BMDO_SLUG, classPickerLabel, subsetProgress } from "./codes";
-import { isAssignableInstructor, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
+import { cohortInstructorIds, isAssignableInstructor, PRACTICAL_INSTRUCTOR_GROUP } from "./catalog";
 import { answersView, gate, passwordFlag, publicUser } from "./helpers";
 
 const secret = { secret: v.string() };
@@ -558,7 +558,7 @@ export const cohortsView = query({
       });
     const cohorts = cohortDocs.map((row) => {
       const plan = cohortPlan(loaded, row);
-      const assigned = row.instructorId == null ? undefined : userDocs.find((user) => user.legacyId === row.instructorId);
+      const assigned = cohortInstructorIds(row).flatMap((id) => userDocs.filter((user) => user.legacyId === id));
       return {
         id: row.legacyId,
         name: row.name,
@@ -568,8 +568,7 @@ export const cohortsView = query({
         course_id: row.courseId,
         organization_id: row.organizationId,
         code: row.code ?? "",
-        instructor_id: row.instructorId ?? null,
-        instructor: assigned ? toPerson(assigned) : null,
+        instructors: assigned.map(toPerson),
         sessions: plan.sessions.map((session) => ({
           title: session.title,
           session_date: session.sessionDate ?? "",
