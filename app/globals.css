@@ -214,6 +214,20 @@ p, li, .lede, .muted { line-height: 1.65; letter-spacing: 0.004em; }
 .field label { font-size: 12px; font-weight: 800; }
 .field input, .field textarea, .field select { width: 100%; border: 1px solid #cbc4b7; border-radius: 8px; padding: 10px 12px; background: #fff; }
 .field textarea { min-height: 90px; }
+.field input[type="checkbox"], .field input[type="radio"] { width: auto; padding: 0; accent-color: var(--ink); }
+fieldset.field { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 14px; }
+fieldset.field > legend { font-size: 12px; font-weight: 800; padding: 0 6px; }
+.pick-list { display: grid; gap: 6px; max-height: 300px; overflow: auto; padding: 2px; }
+.pick-row { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.pick-row.on { border-color: var(--ink); background: #f2f6f1; }
+.pick-row > label { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; cursor: pointer; font-weight: 400; font-size: 14px; }
+.pick-row > label input { width: 18px; height: 18px; flex: none; }
+.pick-name { display: grid; min-width: 0; }
+.pick-name strong { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-name small { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-role { flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold-deep); background: rgba(216, 152, 48, 0.14); border-radius: 99px; padding: 3px 8px; }
+.field .pick-row .pick-code { width: 130px; flex: none; padding: 7px 10px; font-size: 13px; }
+@media (max-width: 560px) { .pick-row { flex-wrap: wrap; } .field .pick-row .pick-code { width: 100%; } }
 .table-wrap { overflow: auto; }
 table { width: 100%; border-collapse: collapse; background: #fff; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
